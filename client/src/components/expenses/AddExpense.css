@@ -1,0 +1,76 @@
+.custom-split-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.custom-split-actions button {
+  font-size: 0.85rem;
+  padding: 6px 12px;
+}
+
+.splits-section {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.splits-list {
+  margin-top: 1rem;
+}
+
+.split-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  border-bottom: 1px solid #e9ecef;
+  transition: background-color 0.2s;
+}
+
+.split-item:last-child {
+  border-bottom: none;
+}
+
+.split-name {
+  font-weight: 600;
+  flex: 1;
+}
+
+.split-inputs {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.split-input {
+  display: flex;
+  flex-direction: column;
+  width: 120px;
+}
+
+.split-input label {
+  font-size: 0.75rem;
+  margin-bottom: 0.25rem;
+  color: #6c757d;
+}
+
+.split-input input {
+  width: 100%;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+}
+
+.splits-summary {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #dee2e6;
+  font-weight: 600;
+}
+
+.splits-summary p {
+  margin: 0.25rem 0;
+}

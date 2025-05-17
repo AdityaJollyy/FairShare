@@ -2,6 +2,7 @@ import { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import AuthContext from '../../context/AuthContext';
+import './AddExpense.css';
 
 const AddExpense = () => {
     const { groupId } = useParams();
@@ -16,10 +17,12 @@ const AddExpense = () => {
         description: '',
         amount: '',
         category: 'Other',
-        splitType: 'equal' // equal, percentage, custom
+        splitType: 'equal' // equal, custom
     });
 
     const [splits, setSplits] = useState([]);
+    // Track which members have been manually modified
+    const [modifiedMembers, setModifiedMembers] = useState(new Set());
 
     const { description, amount, category, splitType } = formData;
 
@@ -57,6 +60,11 @@ const AddExpense = () => {
         if (e.target.name === 'amount' || e.target.name === 'splitType') {
             updateSplits(e.target.name === 'amount' ? e.target.value : amount, e.target.name === 'splitType' ? e.target.value : splitType);
         }
+
+        // Reset modified members when switching to equal split
+        if (e.target.name === 'splitType' && e.target.value === 'equal') {
+            setModifiedMembers(new Set());
+        }
     };
 
     const updateSplits = (newAmount, newSplitType) => {
@@ -72,12 +80,6 @@ const AddExpense = () => {
                 amount: parseFloat(equalAmount.toFixed(2)),
                 percentage: parseFloat((100 / memberCount).toFixed(2))
             })));
-        } else if (newSplitType === 'percentage') {
-            // Keep percentages, update amounts
-            setSplits(splits.map(split => ({
-                ...split,
-                amount: parseFloat((numAmount * (split.percentage / 100)).toFixed(2))
-            })));
         }
         // For custom, we don't auto-update
     };
@@ -88,18 +90,89 @@ const AddExpense = () => {
 
         newSplits[index][field] = numValue;
 
-        // Update the other field based on the changed field
+        // Update the percentage when amount changes (for display only)
         if (field === 'amount') {
             const totalAmount = parseFloat(amount) || 0;
             if (totalAmount > 0) {
                 newSplits[index].percentage = parseFloat(((numValue / totalAmount) * 100).toFixed(2));
             }
-        } else if (field === 'percentage') {
-            const totalAmount = parseFloat(amount) || 0;
-            newSplits[index].amount = parseFloat(((numValue / 100) * totalAmount).toFixed(2));
+
+            // Mark this member as manually modified
+            const newModifiedMembers = new Set(modifiedMembers);
+            newModifiedMembers.add(newSplits[index].userId);
+            setModifiedMembers(newModifiedMembers);
         }
 
         setSplits(newSplits);
+    };
+
+    // Function to distribute remaining amount equally among unmodified members
+    const distributeRemaining = () => {
+        const totalAmount = parseFloat(amount) || 0;
+        if (totalAmount <= 0) {
+            setError('Please enter a valid expense amount first');
+            return;
+        }
+
+        // Calculate currently allocated amount
+        const allocatedAmount = splits.reduce((sum, split) => {
+            if (modifiedMembers.has(split.userId)) {
+                return sum + split.amount;
+            }
+            return sum;
+        }, 0);
+
+        // Calculate remaining amount
+        const remainingAmount = totalAmount - allocatedAmount;
+
+        // Count unmodified members
+        const unmodifiedCount = splits.length - modifiedMembers.size;
+
+        if (unmodifiedCount <= 0) {
+            setError('All members have been manually assigned amounts. Please reset one member to auto-distribute.');
+            return;
+        }
+
+        // Calculate amount per unmodified member
+        const amountPerMember = remainingAmount / unmodifiedCount;
+
+        if (amountPerMember < 0) {
+            setError('The total of manually assigned amounts exceeds the expense total. Please adjust the values.');
+            return;
+        }
+
+        // Update splits
+        const newSplits = splits.map(split => {
+            if (!modifiedMembers.has(split.userId)) {
+                const newAmount = parseFloat(amountPerMember.toFixed(2));
+                return {
+                    ...split,
+                    amount: newAmount,
+                    percentage: parseFloat(((newAmount / totalAmount) * 100).toFixed(2))
+                };
+            }
+            return split;
+        });
+
+        setSplits(newSplits);
+        setError(''); // Clear any previous errors
+    };
+
+    const resetCustomSplits = () => {
+        // Reset all splits to equal
+        const numAmount = parseFloat(amount) || 0;
+        const memberCount = splits.length;
+        const equalAmount = memberCount > 0 ? numAmount / memberCount : 0;
+
+        setSplits(splits.map(split => ({
+            ...split,
+            amount: parseFloat(equalAmount.toFixed(2)),
+            percentage: parseFloat((100 / memberCount).toFixed(2))
+        })));
+
+        // Clear all modified members
+        setModifiedMembers(new Set());
+        setError(''); // Clear any previous errors
     };
 
     const onSubmit = async e => {
@@ -219,17 +292,6 @@ const AddExpense = () => {
                         <div>
                             <input
                                 type="radio"
-                                id="percentage"
-                                name="splitType"
-                                value="percentage"
-                                checked={splitType === 'percentage'}
-                                onChange={onChange}
-                            />
-                            <label htmlFor="percentage">Percentage</label>
-                        </div>
-                        <div>
-                            <input
-                                type="radio"
                                 id="custom"
                                 name="splitType"
                                 value="custom"
@@ -243,6 +305,24 @@ const AddExpense = () => {
 
                 <div className="splits-section">
                     <h3>Split Among</h3>
+                    {splitType === 'custom' && (
+                        <div className="custom-split-actions">
+                            <button
+                                type="button"
+                                className="btn btn-secondary"
+                                onClick={distributeRemaining}
+                            >
+                                Auto-Distribute Remaining
+                            </button>
+                            <button
+                                type="button"
+                                className="btn btn-outline-secondary"
+                                onClick={resetCustomSplits}
+                            >
+                                Reset to Equal
+                            </button>
+                        </div>
+                    )}
                     <div className="splits-list">
                         {splits.map((split, index) => (
                             <div key={split.userId} className="split-item">
@@ -250,8 +330,7 @@ const AddExpense = () => {
                                 <div className="split-inputs">
                                     <div className="split-input">
                                         <label>Amount (Rs.)</label>
-                                        <input
-                                            type="number"
+                                        <input type="number"
                                             value={split.amount}
                                             onChange={(e) => handleSplitChange(index, 'amount', e.target.value)}
                                             step="0.01"
@@ -264,11 +343,10 @@ const AddExpense = () => {
                                         <input
                                             type="number"
                                             value={split.percentage}
-                                            onChange={(e) => handleSplitChange(index, 'percentage', e.target.value)}
+                                            readOnly
                                             step="0.01"
                                             min="0"
                                             max="100"
-                                            disabled={splitType !== 'percentage'}
                                         />
                                     </div>
                                 </div>
@@ -303,4 +381,4 @@ const AddExpense = () => {
     );
 };
 
-export default AddExpense; 
+export default AddExpense;
