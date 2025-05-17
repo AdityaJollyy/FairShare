@@ -43,4 +43,9 @@ router.delete('/:id/members/:userId', auth, groupController.removeMember);
 // @access  Private
 router.delete('/:id', auth, groupController.deleteGroup);
 
+// @route   POST /api/groups/:id/leave
+// @desc    Leave a group (for non-owners)
+// @access  Private
+router.post('/:id/leave', auth, groupController.leaveGroup);
+
 module.exports = router;

@@ -219,7 +219,27 @@ const GroupDetail = () => {
             setError('Failed to remove member');
             console.error('Error removing member:', err);
         }
-    }; if (loading) {
+    };
+
+    // Leave group handler for non-owners
+    const handleLeaveGroup = async () => {
+        if (!group || group.createdBy === user._id) return;
+        if (!window.confirm('Are you sure you want to leave this group?')) return;
+        try {
+            await axios.post(`/groups/${id}/leave`);
+            // Optionally emit a socket event if you want real-time updates for others
+            if (socket) {
+                socket.emit('member_removed', { groupId: id, userId: user._id });
+            }
+            // Redirect to dashboard
+            window.location.href = '/dashboard';
+        } catch (err) {
+            setError(err.response?.data?.message || 'Failed to leave group');
+            console.error('Error leaving group:', err);
+        }
+    };
+
+    if (loading) {
         return (
             <div className="container loading-container">
                 <div className="loading-spinner">
@@ -266,6 +286,12 @@ const GroupDetail = () => {
                 <Link to={`/expenses/analysis/${id}`} className="btn btn-info">
                     <i className="fas fa-chart-pie"></i> View Expense Analysis
                 </Link>
+                {/* Show Leave Group button for non-owners */}
+                {group.createdBy !== user._id && (
+                    <button className="btn btn-warning" onClick={handleLeaveGroup}>
+                        <i className="fas fa-sign-out-alt"></i> Leave Group
+                    </button>
+                )}
             </div>
 
             <div className="group-content">                <div className="members-section">

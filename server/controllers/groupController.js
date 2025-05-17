@@ -307,4 +307,37 @@ exports.deleteGroup = async (req, res) => {
         console.error(err.message);
         res.status(500).send('Server error');
     }
-}; 
+};
+
+// Leave a group (for non-owners)
+exports.leaveGroup = async (req, res) => {
+    try {
+        const group = await Group.findById(req.params.id);
+        if (!group) {
+            return res.status(404).json({ message: 'Group not found' });
+        }
+
+        // Prevent group owner from leaving
+        if (group.createdBy.toString() === req.user.id) {
+            return res.status(403).json({ message: 'Group owner cannot leave the group. You can delete the group instead.' });
+        }
+
+        // Remove user from group members
+        const prevLength = group.members.length;
+        group.members = group.members.filter(member => member.user.toString() !== req.user.id);
+        if (group.members.length === prevLength) {
+            return res.status(400).json({ message: 'You are not a member of this group.' });
+        }
+        await group.save();
+
+        // Remove group from user's groups
+        const user = await User.findById(req.user.id);
+        user.groups = user.groups.filter(groupId => groupId.toString() !== group._id.toString());
+        await user.save();
+
+        res.json({ message: 'Left group successfully', groupId: group._id });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server error');
+    }
+};
