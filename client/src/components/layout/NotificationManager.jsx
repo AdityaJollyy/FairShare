@@ -53,21 +53,57 @@ const NotificationManager = () => {
                     type: 'info'
                 };
                 setNotifications(prevNotifications => [...prevNotifications, notification]);
-            });
-
-            // Listen for expense settlement notifications
+            });            // Listen for expense settlement notifications
             socket.on('settlement_update', (data) => {
-                // Only show notification if the expense was paid by the current user
-                if (data.expense && data.expense.paidBy && data.expense.paidBy.user === user._id) {
-                    // Find the settled user
-                    const settledSplit = data.expense.splitAmong.find(split => split.settled && split.user !== user._id);
-                    if (settledSplit) {
-                        const notification = {
-                            id: new Date().getTime(),
-                            message: `${settledSplit.name} has marked their share of "${data.expense.description}" as settled.`,
-                            type: 'success'
-                        };
-                        setNotifications(prevNotifications => [...prevNotifications, notification]);
+                if (data.expense) {
+                    // If the current user is the one who paid and someone requested settlement
+                    if (data.expense.paidBy && data.expense.paidBy.user === user._id) {
+                        // Find the user who requested settlement
+                        const pendingSettlementSplit = data.expense.splitAmong.find(
+                            split => split.pendingSettlement && split.user !== user._id
+                        );
+                        if (pendingSettlementSplit) {
+                            const notification = {
+                                id: new Date().getTime(),
+                                message: `${pendingSettlementSplit.name} has marked their payment as settled for "${data.expense.description}". Please confirm if you received the payment.`,
+                                type: 'info'
+                            };
+                            setNotifications(prevNotifications => [...prevNotifications, notification]);
+                        }
+
+                        // Find the user who got their settlement confirmed
+                        const settledSplit = data.expense.splitAmong.find(
+                            split => split.settled && !split.pendingSettlement && split.user !== user._id
+                        );
+                        if (settledSplit) {
+                            const notification = {
+                                id: new Date().getTime(),
+                                message: `You have confirmed that you received payment from ${settledSplit.name} for "${data.expense.description}".`,
+                                type: 'success'
+                            };
+                            setNotifications(prevNotifications => [...prevNotifications, notification]);
+                        }
+                    }
+
+                    // If the current user is the one who requested settlement and got a response
+                    const userSplit = data.expense.splitAmong.find(split => split.user === user._id);
+                    if (userSplit) {
+                        if (userSplit.settled) {
+                            const notification = {
+                                id: new Date().getTime(),
+                                message: `${data.expense.paidBy.name} has confirmed your payment for "${data.expense.description}".`,
+                                type: 'success'
+                            };
+                            setNotifications(prevNotifications => [...prevNotifications, notification]);
+                        } else if (!userSplit.pendingSettlement && !userSplit.settled) {
+                            // This means a settlement request was rejected
+                            const notification = {
+                                id: new Date().getTime(),
+                                message: `${data.expense.paidBy.name} has marked your payment as not settled for "${data.expense.description}". Please try again or contact them directly.`,
+                                type: 'error'
+                            };
+                            setNotifications(prevNotifications => [...prevNotifications, notification]);
+                        }
                     }
                 }
             });

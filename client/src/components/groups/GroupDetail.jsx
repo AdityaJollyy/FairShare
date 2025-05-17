@@ -373,42 +373,159 @@ const GroupDetail = () => {
                                     </div>
                                     <div className="expense-splits">
                                         <h4>Split Among:</h4>
-                                        <ul>
-                                            {expense.splitAmong.map(split => (
-                                                <li key={split.user} className={`split-item ${split.settled ? 'settled' : ''}`}>
-                                                    <span>{split.name}: Rs. {split.amount.toFixed(2)}</span>                                                    {split.user === user._id && !split.settled && expense.paidBy.user !== user._id && (
-                                                        <button
-                                                            className="btn btn-sm btn-success"
-                                                            onClick={async () => {
-                                                                try {
-                                                                    const response = await axios.put(`/expenses/settle/${expense._id}`);
-                                                                    // Update the expenses state immediately
-                                                                    setExpenses(prevExpenses =>
-                                                                        prevExpenses.map(exp =>
-                                                                            exp._id === expense._id ? response.data : exp
-                                                                        )
-                                                                    );
-                                                                    // Emit socket event for real-time update
-                                                                    if (socket) {
-                                                                        console.log('Emitting settlement_update event');
-                                                                        socket.emit('settlement_update', {
-                                                                            groupId: id,
-                                                                            expenseId: expense._id,
-                                                                            expense: response.data
-                                                                        });
-                                                                    }
-                                                                } catch (err) {
-                                                                    setError('Failed to mark as settled');
-                                                                    console.error('Error marking as settled:', err);
+                                        <ul>                                            {expense.splitAmong.map(split => (<li key={split.user} className={`split-item ${split.settled ? 'settled' : ''} ${split.pendingSettlement ? 'pending-settlement' : ''}`}>
+                                            <span>{split.name}: Rs. {split.amount.toFixed(2)}</span>
+
+                                            {/* User who needs to pay - can request settlement */}
+                                            {split.user === user._id && !split.settled && !split.pendingSettlement && expense.paidBy.user !== user._id && (
+                                                <button
+                                                    className="btn btn-sm btn-primary"
+                                                    onClick={async () => {
+                                                        try {
+                                                            const response = await axios.put(`/expenses/settle/${expense._id}`, {
+                                                                action: 'request'
+                                                            });
+
+                                                            // Update the expenses state immediately
+                                                            setExpenses(prevExpenses =>
+                                                                prevExpenses.map(exp =>
+                                                                    exp._id === expense._id ? response.data : exp
+                                                                )
+                                                            );
+
+                                                            // Emit socket event for real-time update
+                                                            if (socket) {
+                                                                console.log('Emitting settlement_update event');
+                                                                socket.emit('settlement_update', {
+                                                                    groupId: id,
+                                                                    expenseId: expense._id,
+                                                                    expense: response.data
+                                                                });
+                                                            }
+                                                        } catch (err) {
+                                                            setError('Failed to request settlement');
+                                                            console.error('Error requesting settlement:', err);
+                                                        }
+                                                    }}
+                                                >
+                                                    <i className="fas fa-check-circle"></i> Mark as Settled
+                                                </button>
+                                            )}
+
+                                            {/* User who has requested settlement can cancel their request */}
+                                            {split.user === user._id && split.pendingSettlement && !split.settled && expense.paidBy.user !== user._id && (
+                                                <div className="settlement-actions">
+                                                    <span className="pending-badge">Marked for Settlement</span>
+                                                    <button
+                                                        className="btn btn-sm btn-outline-secondary"
+                                                        onClick={async () => {
+                                                            try {
+                                                                const response = await axios.put(`/expenses/settle/${expense._id}`, {
+                                                                    action: 'cancel'
+                                                                });
+
+                                                                // Update the expenses state immediately
+                                                                setExpenses(prevExpenses =>
+                                                                    prevExpenses.map(exp =>
+                                                                        exp._id === expense._id ? response.data : exp
+                                                                    )
+                                                                );
+
+                                                                // Emit socket event for real-time update
+                                                                if (socket) {
+                                                                    console.log('Emitting settlement_update event');
+                                                                    socket.emit('settlement_update', {
+                                                                        groupId: id,
+                                                                        expenseId: expense._id,
+                                                                        expense: response.data
+                                                                    });
                                                                 }
-                                                            }}
-                                                        >
-                                                            <i className="fas fa-check-circle"></i> Mark as Settled
-                                                        </button>
-                                                    )}
-                                                    {split.settled && <span className="settled-badge">Settled</span>}
-                                                </li>
-                                            ))}
+                                                            } catch (err) {
+                                                                setError('Failed to cancel settlement request');
+                                                                console.error('Error canceling settlement request:', err);
+                                                            }
+                                                        }}
+                                                    >
+                                                        <i className="fas fa-times"></i> Cancel
+                                                    </button>
+                                                </div>
+                                            )}
+
+                                            {/* Person who paid - can confirm or reject settlement */}
+                                            {expense.paidBy.user === user._id && split.pendingSettlement && (
+                                                <div className="settlement-actions">
+                                                    <button
+                                                        className="btn btn-sm btn-success"
+                                                        onClick={async () => {
+                                                            try {
+                                                                const response = await axios.put(`/expenses/settle/${expense._id}`, {
+                                                                    action: 'confirm',
+                                                                    userId: split.user
+                                                                });
+
+                                                                // Update the expenses state immediately
+                                                                setExpenses(prevExpenses =>
+                                                                    prevExpenses.map(exp =>
+                                                                        exp._id === expense._id ? response.data : exp
+                                                                    )
+                                                                );
+
+                                                                // Emit socket event for real-time update
+                                                                if (socket) {
+                                                                    console.log('Emitting settlement_update event');
+                                                                    socket.emit('settlement_update', {
+                                                                        groupId: id,
+                                                                        expenseId: expense._id,
+                                                                        expense: response.data
+                                                                    });
+                                                                }
+                                                            } catch (err) {
+                                                                setError('Failed to confirm settlement');
+                                                                console.error('Error confirming settlement:', err);
+                                                            }
+                                                        }}
+                                                    >
+                                                        <i className="fas fa-check"></i> Settled
+                                                    </button>
+                                                    <button
+                                                        className="btn btn-sm btn-danger"
+                                                        onClick={async () => {
+                                                            try {
+                                                                const response = await axios.put(`/expenses/settle/${expense._id}`, {
+                                                                    action: 'reject',
+                                                                    userId: split.user
+                                                                });
+
+                                                                // Update the expenses state immediately
+                                                                setExpenses(prevExpenses =>
+                                                                    prevExpenses.map(exp =>
+                                                                        exp._id === expense._id ? response.data : exp
+                                                                    )
+                                                                );
+
+                                                                // Emit socket event for real-time update
+                                                                if (socket) {
+                                                                    console.log('Emitting settlement_update event');
+                                                                    socket.emit('settlement_update', {
+                                                                        groupId: id,
+                                                                        expenseId: expense._id,
+                                                                        expense: response.data
+                                                                    });
+                                                                }
+                                                            } catch (err) {
+                                                                setError('Failed to reject settlement');
+                                                                console.error('Error rejecting settlement:', err);
+                                                            }
+                                                        }}
+                                                    >
+                                                        <i className="fas fa-times"></i> Not Settled
+                                                    </button>
+                                                </div>
+                                            )}
+
+                                            {split.settled && <span className="settled-badge">Settled</span>}
+                                        </li>
+                                        ))}
                                         </ul>
                                     </div>
                                 </div>

@@ -117,7 +117,13 @@ const AddExpense = () => {
                 description,
                 amount: expenseAmount,
                 groupId,
-                splitAmong: splits,
+                splitAmong: splits.map(split => ({
+                    userId: split.userId,
+                    name: split.name,
+                    amount: split.amount,
+                    pendingSettlement: false,
+                    settled: false
+                })),
                 category
             });
 

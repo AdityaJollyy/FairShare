@@ -150,10 +150,11 @@ exports.getSettlementPlan = async (req, res) => {
     }
 };
 
-// Mark an expense as settled for a user
+// Handle the two-step settlement process
 exports.settleExpense = async (req, res) => {
     try {
         const { expenseId } = req.params;
+        const { action } = req.body; // 'request' or 'confirm' or 'reject'
 
         // Find expense
         const expense = await Expense.findById(expenseId);
@@ -161,25 +162,122 @@ exports.settleExpense = async (req, res) => {
             return res.status(404).json({ message: 'Expense not found' });
         }
 
-        // Check if user is part of the expense and is the one who has to pay
-        const userSplit = expense.splitAmong.find(split =>
-            split.user.toString() === req.user.id
-        );
+        // If the requester is the one who has to pay (requesting settlement)
+        if (action === 'request') {
+            // Check if user is part of the expense and is the one who has to pay
+            const userSplit = expense.splitAmong.find(split =>
+                split.user.toString() === req.user.id
+            );
 
-        if (!userSplit) {
-            return res.status(403).json({ message: 'Not authorized to settle this expense' });
+            if (!userSplit) {
+                return res.status(403).json({ message: 'Not authorized to settle this expense' });
+            }
+
+            // Check if the user is not the one who paid
+            if (expense.paidBy.user.toString() === req.user.id) {
+                return res.status(403).json({ message: 'You cannot settle an expense you paid for' });
+            }
+
+            // Mark as pending settlement
+            userSplit.pendingSettlement = true;
+            userSplit.settled = false;
+            await expense.save();
+
+            res.json(expense);
         }
+        // If the requester is the one who paid (confirming settlement)
+        else if (action === 'confirm') {
+            // Check if user is the one who paid
+            if (expense.paidBy.user.toString() !== req.user.id) {
+                return res.status(403).json({ message: 'Only the person who paid can confirm settlement' });
+            }
 
-        // Check if the user is the one who paid (creator of the expense)
-        if (expense.paidBy.user.toString() === req.user.id) {
-            return res.status(403).json({ message: 'Only the person who has to pay can mark as settled' });
+            // Get the user ID that the payer is confirming settlement for
+            const { userId } = req.body;
+
+            if (!userId) {
+                return res.status(400).json({ message: 'User ID is required' });
+            }
+
+            // Find the split for the specified user
+            const userSplit = expense.splitAmong.find(split =>
+                split.user.toString() === userId
+            );
+
+            if (!userSplit) {
+                return res.status(400).json({ message: 'User not found in expense split' });
+            }
+
+            if (!userSplit.pendingSettlement) {
+                return res.status(400).json({ message: 'This user has not requested settlement yet' });
+            }
+
+            // Mark as settled
+            userSplit.pendingSettlement = false;
+            userSplit.settled = true;
+            await expense.save();
+
+            res.json(expense);
         }
+        // If the requester is the one who paid (rejecting settlement)
+        else if (action === 'reject') {
+            // Check if user is the one who paid
+            if (expense.paidBy.user.toString() !== req.user.id) {
+                return res.status(403).json({ message: 'Only the person who paid can reject settlement' });
+            }
 
-        // Mark as settled
-        userSplit.settled = true;
-        await expense.save();
+            // Get the user ID that the payer is rejecting settlement for
+            const { userId } = req.body;
 
-        res.json(expense);
+            if (!userId) {
+                return res.status(400).json({ message: 'User ID is required' });
+            }
+
+            // Find the split for the specified user
+            const userSplit = expense.splitAmong.find(split =>
+                split.user.toString() === userId
+            );
+
+            if (!userSplit) {
+                return res.status(400).json({ message: 'User not found in expense split' });
+            }
+
+            if (!userSplit.pendingSettlement) {
+                return res.status(400).json({ message: 'This user has not requested settlement yet' });
+            }
+
+            // Reset settlement status
+            userSplit.pendingSettlement = false;
+            userSplit.settled = false;
+            await expense.save();
+
+            res.json(expense);
+        }
+        // If the requester is the user who needs to settle but wants to cancel their request
+        else if (action === 'cancel') {
+            // Check if user is part of the expense
+            const userSplit = expense.splitAmong.find(split =>
+                split.user.toString() === req.user.id
+            );
+
+            if (!userSplit) {
+                return res.status(403).json({ message: 'Not authorized to cancel settlement for this expense' });
+            }
+
+            if (!userSplit.pendingSettlement) {
+                return res.status(400).json({ message: 'No pending settlement request to cancel' });
+            }
+
+            // Reset the pending settlement status
+            userSplit.pendingSettlement = false;
+            userSplit.settled = false;
+            await expense.save();
+
+            res.json(expense);
+        }
+        else {
+            return res.status(400).json({ message: 'Invalid action. Must be "request", "confirm", "reject", or "cancel"' });
+        }
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server error');

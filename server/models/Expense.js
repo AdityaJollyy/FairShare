@@ -16,14 +16,17 @@ const ExpenseSchema = new mongoose.Schema({
             required: true
         },
         name: String
-    },
-    splitAmong: [{
+    }, splitAmong: [{
         user: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User'
         },
         name: String,
         amount: Number,
+        pendingSettlement: {
+            type: Boolean,
+            default: false
+        },
         settled: {
             type: Boolean,
             default: false
