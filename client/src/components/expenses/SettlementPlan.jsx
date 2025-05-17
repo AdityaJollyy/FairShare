@@ -132,10 +132,10 @@ const SettlementPlan = () => {
         svg.call(zoom);
 
         // Initial zoom out for better visibility with many nodes
-        const nodeCount = group?.members?.length || 0;
-        if (nodeCount > 5) {
+        const memberCount = group?.members?.length || 0;
+        if (memberCount > 5) {
             // Auto zoom out more as node count increases
-            const initialScale = Math.max(0.6, 1 - (nodeCount * 0.05));
+            const initialScale = Math.max(0.6, 1 - (memberCount * 0.05));
             svg.call(zoom.transform, d3.zoomIdentity.scale(initialScale));
         }
 
