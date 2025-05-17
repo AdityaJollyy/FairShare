@@ -75,8 +75,8 @@ exports.getGroupById = async (req, res) => {
     }
 };
 
-// Add a member to a group
-exports.addMember = async (req, res) => {
+// Add a member to a group - Changed to invite member
+exports.inviteMember = async (req, res) => {
     try {
         const { email } = req.body;
 
@@ -101,20 +101,133 @@ exports.addMember = async (req, res) => {
             return res.status(400).json({ message: 'User is already a member of this group' });
         }
 
-        // Add user to group
-        group.members.push({
+        // Check if invitation already exists
+        const invitationExists = group.invitations.some(
+            invite => invite.user.toString() === user._id.toString() && invite.status === 'pending'
+        );
+
+        if (invitationExists) {
+            return res.status(400).json({ message: 'Invitation already sent to this user' });
+        }
+
+        // Get current user (inviter) info
+        const inviter = await User.findById(req.user.id);
+
+        // Add invitation to group
+        group.invitations.push({
             user: user._id,
             name: user.name,
-            email: user.email
+            email: user.email,
+            status: 'pending'
         });
 
         await group.save();
 
-        // Add group to user's groups
-        user.groups.push(group._id);
+        // Add invitation to user
+        user.groupInvitations.push({
+            group: group._id,
+            groupName: group.name,
+            invitedBy: req.user.id,
+            inviterName: inviter.name,
+            status: 'pending'
+        });
+
         await user.save();
 
-        res.json(group);
+        res.json({
+            message: 'Invitation sent successfully',
+            group
+        });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server error');
+    }
+};
+
+// Process invitation response (accept/reject)
+exports.respondToInvitation = async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        const { response } = req.body; // 'accept' or 'reject'
+
+        if (response !== 'accept' && response !== 'reject') {
+            return res.status(400).json({ message: 'Invalid response type' });
+        }
+
+        // Find user and group
+        const user = await User.findById(req.user.id);
+        const group = await Group.findById(groupId);
+
+        if (!group) {
+            return res.status(404).json({ message: 'Group not found' });
+        }
+
+        // Find invitation in user's invitations
+        const invitationIndex = user.groupInvitations.findIndex(
+            invite => invite.group.toString() === groupId && invite.status === 'pending'
+        );
+
+        if (invitationIndex === -1) {
+            return res.status(404).json({ message: 'No pending invitation found' });
+        }
+
+        // Find invitation in group's invitations
+        const groupInvitationIndex = group.invitations.findIndex(
+            invite => invite.user.toString() === req.user.id && invite.status === 'pending'
+        );
+
+        if (groupInvitationIndex === -1) {
+            return res.status(404).json({ message: 'Invitation not found in group' });
+        }
+
+        // Update status in both user and group
+        if (response === 'accept') {
+            // Add user to group members
+            group.members.push({
+                user: req.user.id,
+                name: user.name,
+                email: user.email
+            });
+
+            // Add group to user's groups
+            user.groups.push(group._id);
+
+            // Update invitation status
+            user.groupInvitations[invitationIndex].status = 'accepted';
+            group.invitations[groupInvitationIndex].status = 'accepted';
+        } else {
+            // Update invitation status to rejected
+            user.groupInvitations[invitationIndex].status = 'rejected';
+            group.invitations[groupInvitationIndex].status = 'rejected';
+        }
+
+        await user.save();
+        await group.save();
+
+        res.json({
+            message: `Invitation ${response === 'accept' ? 'accepted' : 'rejected'} successfully`,
+            group,
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email
+            }
+        });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server error');
+    }
+};
+
+// Get all pending invitations for current user
+exports.getUserInvitations = async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+
+        // Filter only pending invitations
+        const pendingInvitations = user.groupInvitations.filter(inv => inv.status === 'pending');
+
+        res.json(pendingInvitations);
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server error');

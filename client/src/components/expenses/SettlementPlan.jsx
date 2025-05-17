@@ -1,28 +1,34 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useContext } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import * as d3 from 'd3';
+import AuthContext from '../../context/AuthContext';
 
 const SettlementPlan = () => {
     const { groupId } = useParams();
+    const { socket } = useContext(AuthContext);
     const [group, setGroup] = useState(null);
     const [settlements, setSettlements] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
-    const graphRef = useRef(null);
-
-    // Fetch group and settlement data
+    const graphRef = useRef(null);    // Fetch group and settlement data
     useEffect(() => {
         const fetchData = async () => {
             try {
                 // Get group details
                 const groupRes = await axios.get(`/groups/${groupId}`);
-                setGroup(groupRes.data);
-
-                // Get settlement plan
+                setGroup(groupRes.data);                // Get settlement plan
                 const settlementRes = await axios.get(`/expenses/settlement/${groupId}`);
-                setSettlements(settlementRes.data);
+                // Sort settlements by date in descending order if they have date information
+                const sortedSettlements = settlementRes.data.sort((a, b) => {
+                    // If date information is available, sort by it
+                    if (a.date && b.date) {
+                        return new Date(b.date) - new Date(a.date);
+                    }
+                    return 0; // Keep original order if no date information
+                });
+                setSettlements(sortedSettlements);
 
                 setLoading(false);
             } catch (err) {
@@ -33,7 +39,64 @@ const SettlementPlan = () => {
         };
 
         fetchData();
-    }, [groupId]);
+
+        // Set up socket event listeners for real-time updates
+        if (socket) {
+            // Join the group room
+            socket.emit('join_group', groupId);
+            console.log(`Joined group ${groupId} for settlement updates`);
+
+            // Listen for expense changes that would affect the settlement plan
+            socket.on('expense_added', (data) => {
+                console.log('New expense added, refreshing settlement plan');
+                fetchData();
+            });
+
+            socket.on('expense_deleted', (data) => {
+                console.log('Expense deleted, refreshing settlement plan');
+                fetchData();
+            });
+
+            socket.on('settlement_update', (data) => {
+                console.log('Settlement update, refreshing settlement plan');
+                fetchData();
+            });
+
+            // Also listen for member changes that might affect settlements
+            socket.on('member_added', (data) => {
+                if (data.groupId === groupId) {
+                    console.log('Member added, refreshing settlement plan');
+                    fetchData();
+                }
+            });
+
+            socket.on('member_removed', (data) => {
+                if (data.groupId === groupId) {
+                    console.log('Member removed, refreshing settlement plan');
+                    fetchData();
+                }
+            });
+        }
+
+        // Set up a polling interval as a backup for real-time updates
+        const intervalId = setInterval(() => {
+            console.log('Polling for settlement updates');
+            fetchData();
+        }, 30000); // Poll every 30 seconds
+
+        // Cleanup
+        return () => {
+            if (socket) {
+                socket.emit('leave_group', groupId);
+                socket.off('expense_added');
+                socket.off('expense_deleted');
+                socket.off('settlement_update');
+                socket.off('member_added');
+                socket.off('member_removed');
+            }
+            clearInterval(intervalId);
+        };
+    }, [groupId, socket]);
 
     // Create graph visualization
     useEffect(() => {

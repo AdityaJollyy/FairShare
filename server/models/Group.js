@@ -16,6 +16,23 @@ const GroupSchema = new mongoose.Schema({
     name: String,
     email: String
   }],
+  invitations: [{
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    name: String,
+    email: String,
+    status: {
+      type: String,
+      enum: ['pending', 'accepted', 'rejected'],
+      default: 'pending'
+    },
+    sentAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
   expenses: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Expense'

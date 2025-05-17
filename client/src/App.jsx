@@ -14,6 +14,7 @@ import CreateGroup from './components/groups/CreateGroup';
 import AddExpense from './components/expenses/AddExpense';
 import SettlementPlan from './components/expenses/SettlementPlan';
 import ExpenseAnalysis from './components/expenses/ExpenseAnalysis';
+import NotificationManager from './components/layout/NotificationManager';
 
 // Context
 import AuthContext from './context/AuthContext';
@@ -42,7 +43,36 @@ function App() {
           setIsAuthenticated(true);
 
           // Connect to socket
-          const socketInstance = io('http://localhost:5000');
+          const socketInstance = io('http://localhost:5000', {
+            reconnection: true,
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
+            timeout: 20000
+          });
+
+          // Set up socket connection and error handling
+          socketInstance.on('connect', () => {
+            console.log('Socket connected:', socketInstance.id);
+          });
+
+          socketInstance.on('connect_error', (error) => {
+            console.error('Socket connection error:', error);
+          });
+
+          socketInstance.on('disconnect', (reason) => {
+            console.log('Socket disconnected:', reason);
+
+            // Attempt to reconnect if not closed intentionally
+            if (reason === 'io server disconnect') {
+              socketInstance.connect();
+            }
+          });
+
+          socketInstance.on('reconnect', (attemptNumber) => {
+            console.log('Socket reconnected after', attemptNumber, 'attempts');
+          });
+
           setSocket(socketInstance);
         } catch (err) {
           console.error('Error loading user:', err);
@@ -59,6 +89,7 @@ function App() {
     // Cleanup socket connection
     return () => {
       if (socket) {
+        console.log('Disconnecting socket');
         socket.disconnect();
       }
     };
@@ -75,6 +106,7 @@ function App() {
       <Router>
         <div className="App">
           <Navbar />
+          <NotificationManager />
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/register" element={<Register />} />

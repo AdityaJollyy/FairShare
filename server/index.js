@@ -48,24 +48,26 @@ io.on('connection', (socket) => {
     socket.on('leave_group', (groupId) => {
         socket.leave(groupId);
         console.log(`User ${socket.id} left group: ${groupId}`);
-    });
-
-    // New expense added
+    });    // New expense added
     socket.on('expense_added', (data) => {
-        socket.to(data.groupId).emit('expense_added', data);
+        console.log('Expense added:', data);
+        // Broadcast to all members in the group room
+        io.to(data.groupId).emit('expense_added', data);
     });
 
     // Settlement update
     socket.on('settlement_update', (data) => {
-        socket.to(data.groupId).emit('settlement_update', data);
+        console.log('Settlement update:', data);
+        // Broadcast to all members in the group room
+        io.to(data.groupId).emit('settlement_update', data);
     });
 
     // Expense deleted
     socket.on('expense_deleted', (data) => {
-        socket.to(data.groupId).emit('expense_deleted', data);
-    });
-
-    // Member removed
+        console.log('Expense deleted:', data);
+        // Broadcast to all members in the group room
+        io.to(data.groupId).emit('expense_deleted', data);
+    });// Member removed
     socket.on('member_removed', (data) => {
         socket.to(data.groupId).emit('member_removed', data);
     });
@@ -73,6 +75,27 @@ io.on('connection', (socket) => {
     // Group deleted
     socket.on('group_deleted', (data) => {
         socket.broadcast.emit('group_deleted', data);
+    });    // Group invitation sent
+    socket.on('invitation_sent', (data) => {
+        console.log('Invitation sent:', data);
+        // Broadcast to all users since we don't know which socket belongs to the invitee
+        socket.broadcast.emit('invitation_received', data);
+    });
+
+    // Invitation response (accept/reject)
+    socket.on('invitation_response', (data) => {
+        console.log('Invitation response:', data);
+        // Broadcast to the group room
+        io.to(data.groupId).emit('invitation_response', data);
+        // Also broadcast to all sockets to update dashboards
+        socket.broadcast.emit('invitation_response', data);
+    });
+
+    // Member added to group
+    socket.on('member_added', (data) => {
+        console.log('Member added to group:', data);
+        // Broadcast to all sockets to update their dashboards if needed
+        io.emit('member_added', data);
     });
 
     // Disconnect

@@ -1,27 +1,31 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import { PieChart, Pie, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, Cell, ResponsiveContainer } from 'recharts';
+import AuthContext from '../../context/AuthContext';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FFC658', '#8DD1E1'];
 
 const ExpenseAnalysis = () => {
     const { groupId } = useParams();
+    const { socket } = useContext(AuthContext);
     const [group, setGroup] = useState(null);
     const [analysis, setAnalysis] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
-
-    // Fetch group and analysis data
+    const [error, setError] = useState('');    // Fetch group and analysis data
     useEffect(() => {
         const fetchData = async () => {
             try {
                 // Get group details
                 const groupRes = await axios.get(`/groups/${groupId}`);
-                setGroup(groupRes.data);
-
-                // Get expense analysis
+                setGroup(groupRes.data);                // Get expense analysis
                 const analysisRes = await axios.get(`/expenses/analysis/${groupId}`);
+
+                // If analysis contains expense entries that need to be sorted
+                if (analysisRes.data && analysisRes.data.recentExpenses) {
+                    analysisRes.data.recentExpenses.sort((a, b) => new Date(b.date) - new Date(a.date));
+                }
+
                 setAnalysis(analysisRes.data);
 
                 setLoading(false);
@@ -33,7 +37,64 @@ const ExpenseAnalysis = () => {
         };
 
         fetchData();
-    }, [groupId]);
+
+        // Set up socket event listeners for real-time updates
+        if (socket) {
+            // Join the group room
+            socket.emit('join_group', groupId);
+            console.log(`Joined group ${groupId} for expense analysis updates`);
+
+            // Listen for expense changes that would affect the analysis
+            socket.on('expense_added', (data) => {
+                console.log('New expense added, refreshing expense analysis');
+                fetchData();
+            });
+
+            socket.on('expense_deleted', (data) => {
+                console.log('Expense deleted, refreshing expense analysis');
+                fetchData();
+            });
+
+            socket.on('settlement_update', (data) => {
+                console.log('Settlement update, refreshing expense analysis');
+                fetchData();
+            });
+
+            // Also listen for member changes that might affect analysis
+            socket.on('member_added', (data) => {
+                if (data.groupId === groupId) {
+                    console.log('Member added, refreshing expense analysis');
+                    fetchData();
+                }
+            });
+
+            socket.on('member_removed', (data) => {
+                if (data.groupId === groupId) {
+                    console.log('Member removed, refreshing expense analysis');
+                    fetchData();
+                }
+            });
+        }
+
+        // Set up a polling interval as a backup for real-time updates
+        const intervalId = setInterval(() => {
+            console.log('Polling for expense analysis updates');
+            fetchData();
+        }, 30000); // Poll every 30 seconds
+
+        // Cleanup
+        return () => {
+            if (socket) {
+                socket.emit('leave_group', groupId);
+                socket.off('expense_added');
+                socket.off('expense_deleted');
+                socket.off('settlement_update');
+                socket.off('member_added');
+                socket.off('member_removed');
+            }
+            clearInterval(intervalId);
+        };
+    }, [groupId, socket]);
 
     if (loading) {
         return <div className="container">Loading...</div>;

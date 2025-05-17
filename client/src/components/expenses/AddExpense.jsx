@@ -112,9 +112,7 @@ const AddExpense = () => {
         if (Math.abs(totalSplitAmount - expenseAmount) > 0.01) {
             setError(`Split amounts must equal the total expense amount (${expenseAmount})`);
             return;
-        }
-
-        try {
+        } try {
             const res = await axios.post('/expenses', {
                 description,
                 amount: expenseAmount,
@@ -125,7 +123,8 @@ const AddExpense = () => {
 
             // Emit socket event for real-time update
             if (socket) {
-                socket.emit('new_expense', {
+                console.log('Emitting expense_added event');
+                socket.emit('expense_added', {
                     groupId,
                     expense: res.data
                 });
@@ -135,8 +134,8 @@ const AddExpense = () => {
             navigate(`/groups/${groupId}`);
 
         } catch (err) {
-            setError(err.response.data.message || 'Failed to add expense');
-            console.error('Error adding expense:', err.response.data);
+            setError(err.response?.data?.message || 'Failed to add expense');
+            console.error('Error adding expense:', err.response?.data || err);
         }
     };
 
