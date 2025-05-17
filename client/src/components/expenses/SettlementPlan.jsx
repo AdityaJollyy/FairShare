@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import * as d3 from 'd3';
 import AuthContext from '../../context/AuthContext';
+import './DebtGraphStyles.css';
 
 const SettlementPlan = () => {
     const { groupId } = useParams();
@@ -103,22 +104,84 @@ const SettlementPlan = () => {
         if (!loading && settlements.length > 0 && graphRef.current) {
             createGraph();
         }
-    }, [loading, settlements]);
-
-    const createGraph = () => {
+    }, [loading, settlements]); const createGraph = () => {
         // Clear previous graph
         d3.select(graphRef.current).selectAll('*').remove();
 
-        const width = 600;
-        const height = 400;
+        // Get the container width
+        const container = graphRef.current;
+        const containerRect = container.getBoundingClientRect();
+        const width = containerRect.width || 900;
+        const height = 600; // Increased height for better visibility with many nodes
 
-        // Create SVG
+        // Create SVG with zoom functionality
         const svg = d3.select(graphRef.current)
             .append('svg')
-            .attr('width', width)
-            .attr('height', height);
+            .attr('width', '100%')
+            .attr('height', height)
+            .attr('viewBox', `0 0 ${width} ${height}`)
+            .attr('preserveAspectRatio', 'xMidYMid meet');
 
-        // Create nodes (users)
+        // Add zoom behavior with wider scale extent for larger groups
+        const zoom = d3.zoom()
+            .scaleExtent([0.05, 5]) // Allow zooming out more for larger groups
+            .on('zoom', (event) => {
+                g.attr('transform', event.transform);
+            });
+
+        svg.call(zoom);
+
+        // Initial zoom out for better visibility with many nodes
+        const nodeCount = group?.members?.length || 0;
+        if (nodeCount > 5) {
+            // Auto zoom out more as node count increases
+            const initialScale = Math.max(0.6, 1 - (nodeCount * 0.05));
+            svg.call(zoom.transform, d3.zoomIdentity.scale(initialScale));
+        }
+
+        // Add zoom controls
+        const zoomControls = svg.append('g')
+            .attr('class', 'zoom-controls')
+            .attr('transform', `translate(${width - 80}, 20)`);
+
+        zoomControls.append('rect')
+            .attr('width', 60)
+            .attr('height', 60)
+            .attr('rx', 5)
+            .attr('fill', 'rgba(255, 255, 255, 0.7)');
+
+        zoomControls.append('text')
+            .attr('x', 30)
+            .attr('y', 20)
+            .attr('text-anchor', 'middle')
+            .attr('cursor', 'pointer')
+            .text('🔍+')
+            .on('click', () => {
+                svg.transition().duration(300).call(zoom.scaleBy, 1.3);
+            });
+
+        zoomControls.append('text')
+            .attr('x', 30)
+            .attr('y', 40)
+            .attr('text-anchor', 'middle')
+            .attr('cursor', 'pointer')
+            .text('🔍-')
+            .on('click', () => {
+                svg.transition().duration(300).call(zoom.scaleBy, 0.7);
+            });
+
+        zoomControls.append('text')
+            .attr('x', 30)
+            .attr('y', 57)
+            .attr('text-anchor', 'middle')
+            .attr('cursor', 'pointer')
+            .text('🔄')
+            .on('click', () => {
+                svg.transition().duration(300).call(zoom.transform, d3.zoomIdentity);
+            });
+
+        // Create a group for the graph elements that will be transformed during zoom
+        const g = svg.append('g');        // Create nodes (users)
         const nodes = [];
         const nodeMap = {};
 
@@ -142,54 +205,91 @@ const SettlementPlan = () => {
             value: settlement.amount
         }));
 
-        // Create force simulation
+        // Create force simulation with adjustable parameters based on node count
+        const nodeCount = nodes.length;
+        const linkDistance = Math.max(100, Math.min(200, 600 / nodeCount)); // Adjust distance based on node count
+        const chargeStrength = Math.max(-800, Math.min(-300, -100 * nodeCount)); // Stronger repulsion for more nodes
+
         const simulation = d3.forceSimulation(nodes)
-            .force('link', d3.forceLink(links).id(d => d.id).distance(100))
-            .force('charge', d3.forceManyBody().strength(-300))
+            .force('link', d3.forceLink(links).id(d => d.id).distance(linkDistance))
+            .force('charge', d3.forceManyBody().strength(chargeStrength))
             .force('center', d3.forceCenter(width / 2, height / 2))
+            .force('collision', d3.forceCollide().radius(30)) // Prevent node overlap
             .on('tick', ticked);
 
-        // Create links
-        const link = svg.append('g')
+        // Create links - fixed width regardless of amount
+        const link = g.append('g')
             .selectAll('line')
             .data(links)
             .enter()
             .append('line')
             .attr('stroke', '#999')
-            .attr('stroke-width', d => Math.sqrt(d.value) / 2);
+            .attr('stroke-width', 2) // Fixed width
+            .attr('stroke-opacity', 0.6);
 
-        // Create nodes
-        const node = svg.append('g')
+        // Create nodes with improved styling
+        const node = g.append('g')
             .selectAll('circle')
             .data(nodes)
             .enter()
             .append('circle')
-            .attr('r', 10)
-            .attr('fill', '#69b3a2')
+            .attr('r', 12)
+            .attr('fill', d => {
+                // Color scale for nodes
+                const colors = ['#5bc0de', '#69b3a2', '#f0ad4e', '#5cb85c', '#d9534f', '#337ab7'];
+                return colors[nodes.indexOf(d) % colors.length];
+            })
+            .attr('stroke', '#fff')
+            .attr('stroke-width', 1.5)
             .call(d3.drag()
                 .on('start', dragstarted)
                 .on('drag', dragged)
                 .on('end', dragended));
 
-        // Add labels
-        const label = svg.append('g')
-            .selectAll('text')
+        // Add labels with better positioning and background
+        const labelGroup = g.append('g')
+            .selectAll('g')
             .data(nodes)
             .enter()
-            .append('text')
+            .append('g');
+
+        // Label background for better readability
+        labelGroup.append('rect')
+            .attr('fill', 'white')
+            .attr('opacity', 0.8)
+            .attr('rx', 3)
+            .attr('ry', 3);
+
+        const labels = labelGroup.append('text')
             .text(d => d.name)
             .attr('font-size', 12)
+            .attr('font-weight', 'bold')
             .attr('dx', 15)
             .attr('dy', 4);
 
+        // Calculate and position the background rectangles based on text size
+        labelGroup.selectAll('rect')
+            .attr('width', function () {
+                return this.parentNode.querySelector('text').getBBox().width + 6;
+            })
+            .attr('height', function () {
+                return this.parentNode.querySelector('text').getBBox().height + 4;
+            })
+            .attr('x', function () {
+                return this.parentNode.querySelector('text').getBBox().x - 3;
+            })
+            .attr('y', function () {
+                return this.parentNode.querySelector('text').getBBox().y - 2;
+            });
+
         // Add arrows for direction
-        svg.append('defs').selectAll('marker')
+        g.append('defs').selectAll('marker')
             .data(links)
             .enter()
             .append('marker')
             .attr('id', (d, i) => `arrow-${i}`)
             .attr('viewBox', '0 -5 10 10')
-            .attr('refX', 20)
+            .attr('refX', 25) // Position adjusted for larger nodes
             .attr('refY', 0)
             .attr('markerWidth', 6)
             .attr('markerHeight', 6)
@@ -200,35 +300,60 @@ const SettlementPlan = () => {
 
         link.attr('marker-end', (d, i) => `url(#arrow-${i})`);
 
-        // Add amount labels
-        const linkLabels = svg.append('g')
-            .selectAll('text')
+        // Add amount labels with improved visibility
+        const linkLabels = g.append('g')
+            .selectAll('g')
             .data(links)
             .enter()
-            .append('text')
+            .append('g');
+
+        linkLabels.append('rect')
+            .attr('fill', 'white')
+            .attr('opacity', 0.9)
+            .attr('rx', 3)
+            .attr('ry', 3);
+
+        const amountTexts = linkLabels.append('text')
             .text(d => `Rs. ${d.value.toFixed(2)}`)
-            .attr('font-size', 10)
+            .attr('font-size', 11)
+            .attr('font-weight', 'bold')
+            .attr('text-anchor', 'middle')
             .attr('fill', '#333');
 
-        function ticked() {
-            link
-                .attr('x1', d => d.source.x)
-                .attr('y1', d => d.source.y)
-                .attr('x2', d => d.target.x)
-                .attr('y2', d => d.target.y);
+        // Calculate and position the background rectangles for amount labels
+        linkLabels.selectAll('rect')
+            .attr('width', function () {
+                return this.parentNode.querySelector('text').getBBox().width + 8;
+            })
+            .attr('height', function () {
+                return this.parentNode.querySelector('text').getBBox().height + 6;
+            })
+            .attr('x', function () {
+                return this.parentNode.querySelector('text').getBBox().x - 4;
+            })
+            .attr('y', function () {
+                return this.parentNode.querySelector('text').getBBox().y - 3;
+            }); function ticked() {
+                link
+                    .attr('x1', d => d.source.x)
+                    .attr('y1', d => d.source.y)
+                    .attr('x2', d => d.target.x)
+                    .attr('y2', d => d.target.y);
 
-            node
-                .attr('cx', d => d.x)
-                .attr('cy', d => d.y);
+                node
+                    .attr('cx', d => d.x)
+                    .attr('cy', d => d.y);
 
-            label
-                .attr('x', d => d.x)
-                .attr('y', d => d.y);
+                labelGroup
+                    .attr('transform', d => `translate(${d.x}, ${d.y})`);
 
-            linkLabels
-                .attr('x', d => (d.source.x + d.target.x) / 2)
-                .attr('y', d => (d.source.y + d.target.y) / 2);
-        }
+                linkLabels
+                    .attr('transform', d => {
+                        const midX = (d.source.x + d.target.x) / 2;
+                        const midY = (d.source.y + d.target.y) / 2;
+                        return `translate(${midX}, ${midY})`;
+                    });
+            }
 
         function dragstarted(event, d) {
             if (!event.active) simulation.alphaTarget(0.3).restart();
@@ -246,15 +371,13 @@ const SettlementPlan = () => {
             d.fx = null;
             d.fy = null;
         }
-    };
-
-    if (loading) {
+    }; if (loading) {
         return <div className="container">Loading...</div>;
     }
 
     return (
         <section className="container">
-            <Link to={`/groups/${groupId}`} className="btn btn-light">
+            <Link to={`/groups/${groupId}`} className="btn btn-light mb-3">
                 Back to Group
             </Link>
 
@@ -286,10 +409,11 @@ const SettlementPlan = () => {
                             <h3>Debt Graph Visualization</h3>
                             <p className="graph-explanation">
                                 This graph shows who owes money to whom. Arrows indicate the direction of payment.
+                                You can drag nodes to rearrange and use the controls in the top right to zoom in/out.
                             </p>
                             <div className="graph-container" ref={graphRef}></div>
                             <p className="graph-instructions">
-                                <small>You can drag the nodes to rearrange the graph.</small>
+                                <small>💡 Tip: Drag nodes to rearrange. Use 🔍+/- buttons to zoom in/out, and 🔄 to reset the view.</small>
                             </p>
                         </div>
                     </>

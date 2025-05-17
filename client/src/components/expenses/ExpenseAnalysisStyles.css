@@ -1,0 +1,137 @@
+.analysis-content {
+  margin-top: 20px;
+}
+
+.analysis-summary {
+  background-color: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 25px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.analysis-summary h3 {
+  margin-top: 0;
+  color: #333;
+  font-size: 1.4rem;
+}
+
+.analysis-summary p {
+  font-size: 1.1rem;
+  margin-bottom: 0;
+  font-weight: 500;
+}
+
+/* Charts layout - vertical stacking */
+.analysis-charts-container {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  margin-bottom: 30px;
+}
+
+.chart-wrapper {
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.chart-wrapper h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #333;
+  text-align: center;
+  font-size: 1.3rem;
+}
+
+/* Tables styling */
+.analysis-details {
+  background-color: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  margin-top: 30px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.analysis-details h3 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: #333;
+  font-size: 1.4rem;
+}
+
+.distribution-tables {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+}
+
+.distribution-table {
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: 15px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.distribution-table h4 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #333;
+  font-size: 1.2rem;
+}
+
+.table-responsive {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+table th {
+  background-color: #f2f2f2;
+  padding: 12px 15px;
+  text-align: left;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 2px solid #ddd;
+}
+
+table td {
+  padding: 10px 15px;
+  border-bottom: 1px solid #eee;
+}
+
+table tr:last-child td {
+  border-bottom: none;
+}
+
+table tr:hover {
+  background-color: #f9f9f9;
+}
+
+/* Responsive adjustments */
+@media (min-width: 768px) {
+  .distribution-tables {
+    flex-direction: row;
+    gap: 20px;
+  }
+
+  .distribution-table {
+    flex: 1;
+  }
+
+  /* Allow more space for charts on larger screens */
+  .chart-wrapper {
+    padding: 25px;
+  }
+}
+
+@media (min-width: 992px) {
+  /* For even larger screens, we could make the chart heights more dramatic */
+  .chart-wrapper {
+    min-height: 450px;
+  }
+}

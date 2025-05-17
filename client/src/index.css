@@ -402,8 +402,8 @@ button {
 
 /* Settlement Plan */
 .settlement-content {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 2rem;
 }
 
@@ -416,7 +416,7 @@ button {
   background: var(--light-color);
   padding: 1rem;
   border-radius: 5px;
-  height: 400px;
+  height: 550px;
 }
 
 /* Analysis */
@@ -464,7 +464,6 @@ button {
   }
 
   .group-content,
-  .settlement-content,
   .analysis-charts {
     grid-template-columns: 1fr;
   }
