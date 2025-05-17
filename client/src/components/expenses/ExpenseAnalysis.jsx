@@ -123,7 +123,7 @@ const ExpenseAnalysis = () => {
                 <div className="analysis-charts-container">
                     <div className="chart-wrapper">
                         <h3>Expenses by Category</h3>
-                        <ResponsiveContainer width="100%" height={350}>
+                        <ResponsiveContainer width="100%" height={400}>
                             <PieChart>
                                 <Pie
                                     data={analysis.categoryExpenses}
@@ -147,7 +147,7 @@ const ExpenseAnalysis = () => {
 
                     <div className="chart-wrapper">
                         <h3>Expenses by User</h3>
-                        <ResponsiveContainer width="100%" height={350}>
+                        <ResponsiveContainer width="100%" height={400}>
                             <BarChart
                                 data={analysis.userExpenses}
                                 margin={{ top: 20, right: 30, left: 30, bottom: 20 }}
@@ -164,7 +164,7 @@ const ExpenseAnalysis = () => {
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
-                </div>                <div className="analysis-details">
+                </div><div className="analysis-details">
                     <h3>Expense Distribution</h3>
                     <div className="distribution-tables">
                         <div className="distribution-table">

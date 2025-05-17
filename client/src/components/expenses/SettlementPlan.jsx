@@ -203,18 +203,16 @@ const SettlementPlan = () => {
             source: settlement.from.id,
             target: settlement.to.id,
             value: settlement.amount
-        }));
-
-        // Create force simulation with adjustable parameters based on node count
+        }));        // Create force simulation with adjustable parameters based on node count
         const nodeCount = nodes.length;
-        const linkDistance = Math.max(100, Math.min(200, 600 / nodeCount)); // Adjust distance based on node count
-        const chargeStrength = Math.max(-800, Math.min(-300, -100 * nodeCount)); // Stronger repulsion for more nodes
+        const linkDistance = Math.max(120, Math.min(220, 650 / nodeCount)); // Adjusted distance based on node count
+        const chargeStrength = Math.max(-900, Math.min(-400, -120 * nodeCount)); // Stronger repulsion for better spacing
 
         const simulation = d3.forceSimulation(nodes)
             .force('link', d3.forceLink(links).id(d => d.id).distance(linkDistance))
             .force('charge', d3.forceManyBody().strength(chargeStrength))
             .force('center', d3.forceCenter(width / 2, height / 2))
-            .force('collision', d3.forceCollide().radius(30)) // Prevent node overlap
+            .force('collision', d3.forceCollide().radius(45)) // Increased radius to prevent node-label overlap
             .on('tick', ticked);
 
         // Create links - fixed width regardless of amount
@@ -225,74 +223,74 @@ const SettlementPlan = () => {
             .append('line')
             .attr('stroke', '#999')
             .attr('stroke-width', 2) // Fixed width
-            .attr('stroke-opacity', 0.6);
-
-        // Create nodes with improved styling
+            .attr('stroke-opacity', 0.6);        // Create nodes with improved styling
         const node = g.append('g')
             .selectAll('circle')
             .data(nodes)
             .enter()
             .append('circle')
-            .attr('r', 12)
+            .attr('r', 15) // Slightly larger nodes
             .attr('fill', d => {
-                // Color scale for nodes
-                const colors = ['#5bc0de', '#69b3a2', '#f0ad4e', '#5cb85c', '#d9534f', '#337ab7'];
+                // Better color scale for nodes
+                const colors = ['#4682B4', '#6495ED', '#1E90FF', '#87CEFA', '#7B68EE', '#BA55D3', '#FF69B4'];
                 return colors[nodes.indexOf(d) % colors.length];
             })
             .attr('stroke', '#fff')
-            .attr('stroke-width', 1.5)
+            .attr('stroke-width', 2)
             .call(d3.drag()
                 .on('start', dragstarted)
                 .on('drag', dragged)
-                .on('end', dragended));
-
-        // Add labels with better positioning and background
+                .on('end', dragended));// Add labels with better positioning and background
         const labelGroup = g.append('g')
             .selectAll('g')
             .data(nodes)
             .enter()
-            .append('g');
+            .append('g')
+            .attr('class', 'node-label');
 
         // Label background for better readability
         labelGroup.append('rect')
             .attr('fill', 'white')
-            .attr('opacity', 0.8)
-            .attr('rx', 3)
-            .attr('ry', 3);
+            .attr('opacity', 0.95)
+            .attr('rx', 8)
+            .attr('ry', 8)
+            .attr('stroke', '#ddd')
+            .attr('stroke-width', 1);
 
         const labels = labelGroup.append('text')
             .text(d => d.name)
             .attr('font-size', 12)
             .attr('font-weight', 'bold')
-            .attr('dx', 15)
-            .attr('dy', 4);
+            .attr('text-anchor', 'middle')
+            .attr('dominant-baseline', 'middle')
+            .attr('dx', 0)
+            .attr('dy', 0)
+            .attr('fill', '#333');
 
         // Calculate and position the background rectangles based on text size
         labelGroup.selectAll('rect')
             .attr('width', function () {
-                return this.parentNode.querySelector('text').getBBox().width + 6;
+                return this.parentNode.querySelector('text').getBBox().width + 16;
             })
             .attr('height', function () {
-                return this.parentNode.querySelector('text').getBBox().height + 4;
+                return this.parentNode.querySelector('text').getBBox().height + 10;
             })
             .attr('x', function () {
-                return this.parentNode.querySelector('text').getBBox().x - 3;
+                return this.parentNode.querySelector('text').getBBox().x - 8;
             })
             .attr('y', function () {
-                return this.parentNode.querySelector('text').getBBox().y - 2;
-            });
-
-        // Add arrows for direction
+                return this.parentNode.querySelector('text').getBBox().y - 5;
+            });        // Add arrows for direction
         g.append('defs').selectAll('marker')
             .data(links)
             .enter()
             .append('marker')
             .attr('id', (d, i) => `arrow-${i}`)
             .attr('viewBox', '0 -5 10 10')
-            .attr('refX', 25) // Position adjusted for larger nodes
+            .attr('refX', 26) // Position adjusted for larger nodes
             .attr('refY', 0)
-            .attr('markerWidth', 6)
-            .attr('markerHeight', 6)
+            .attr('markerWidth', 8)  // Increased size
+            .attr('markerHeight', 8) // Increased size
             .attr('orient', 'auto')
             .append('path')
             .attr('d', 'M0,-5L10,0L0,5')
@@ -305,34 +303,38 @@ const SettlementPlan = () => {
             .selectAll('g')
             .data(links)
             .enter()
-            .append('g');
+            .append('g')
+            .attr('class', 'amount-label');
 
         linkLabels.append('rect')
-            .attr('fill', 'white')
-            .attr('opacity', 0.9)
-            .attr('rx', 3)
-            .attr('ry', 3);
+            .attr('fill', '#f8f8f8')
+            .attr('opacity', 0.95)
+            .attr('rx', 10)
+            .attr('ry', 10)
+            .attr('stroke', '#ccc')
+            .attr('stroke-width', 0.5);
 
         const amountTexts = linkLabels.append('text')
-            .text(d => `Rs. ${d.value.toFixed(2)}`)
+            .text(d => `₹${d.value.toFixed(0)}`) // Simplified rupee amount
             .attr('font-size', 11)
             .attr('font-weight', 'bold')
             .attr('text-anchor', 'middle')
-            .attr('fill', '#333');
+            .attr('dominant-baseline', 'middle')
+            .attr('fill', '#444');
 
         // Calculate and position the background rectangles for amount labels
         linkLabels.selectAll('rect')
             .attr('width', function () {
-                return this.parentNode.querySelector('text').getBBox().width + 8;
+                return this.parentNode.querySelector('text').getBBox().width + 16;
             })
             .attr('height', function () {
-                return this.parentNode.querySelector('text').getBBox().height + 6;
+                return this.parentNode.querySelector('text').getBBox().height + 10;
             })
             .attr('x', function () {
-                return this.parentNode.querySelector('text').getBBox().x - 4;
+                return this.parentNode.querySelector('text').getBBox().x - 8;
             })
             .attr('y', function () {
-                return this.parentNode.querySelector('text').getBBox().y - 3;
+                return this.parentNode.querySelector('text').getBBox().y - 5;
             }); function ticked() {
                 link
                     .attr('x1', d => d.source.x)
@@ -344,14 +346,60 @@ const SettlementPlan = () => {
                     .attr('cx', d => d.x)
                     .attr('cy', d => d.y);
 
-                labelGroup
-                    .attr('transform', d => `translate(${d.x}, ${d.y})`);
+                // Position labels to avoid arrow overlap
+                labelGroup.attr('transform', d => {
+                    // Get all links connected to this node
+                    const nodeLinks = links.filter(link =>
+                        link.source.id === d.id || link.target.id === d.id
+                    );
 
+                    // Calculate directions of connected links
+                    const hasIncoming = nodeLinks.some(link => link.target.id === d.id);
+                    const hasOutgoing = nodeLinks.some(link => link.source.id === d.id);
+
+                    // Determine label position based on connections
+                    let offsetX = 0;
+                    let offsetY = -30; // Position label above node by default, increased distance
+
+                    if (hasIncoming && !hasOutgoing) {
+                        // If node only has incoming links, position label on the right
+                        offsetX = 35; // Increased offset
+                        offsetY = 0;
+                    } else if (hasOutgoing && !hasIncoming) {
+                        // If node only has outgoing links, position label on the left
+                        offsetX = -35; // Increased offset
+                        offsetY = 0;
+                    } else if (hasIncoming && hasOutgoing) {
+                        // If node has both incoming and outgoing links, position above
+                        offsetX = 0;
+                        offsetY = -35; // Increased offset
+                    }
+
+                    return `translate(${d.x + offsetX}, ${d.y + offsetY})`;
+                });
+
+                // Position amount labels with improved offset from the midpoint
                 linkLabels
                     .attr('transform', d => {
+                        // Calculate midpoint of the link
                         const midX = (d.source.x + d.target.x) / 2;
                         const midY = (d.source.y + d.target.y) / 2;
-                        return `translate(${midX}, ${midY})`;
+
+                        // Calculate vector perpendicular to the link for offset
+                        const dx = d.target.x - d.source.x;
+                        const dy = d.target.y - d.source.y;
+                        const len = Math.sqrt(dx * dx + dy * dy);
+
+                        // Apply perpendicular offset (only if there's a reasonable length)
+                        let offsetX = 0;
+                        let offsetY = 0;
+                        if (len > 0) {
+                            // Normalize and apply offset perpendicular to the link
+                            offsetX = -dy / len * 15; // Offset amount
+                            offsetY = dx / len * 15;  // Offset amount
+                        }
+
+                        return `translate(${midX + offsetX}, ${midY + offsetY})`;
                     });
             }
 

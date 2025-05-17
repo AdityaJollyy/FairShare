@@ -26,29 +26,132 @@
 .analysis-charts-container {
   display: flex;
   flex-direction: column;
-  gap: 30px;
-  margin-bottom: 30px;
+  gap: 40px; /* Increased gap between charts */
+  margin-bottom: 40px;
 }
 
 .chart-wrapper {
   background-color: #ffffff;
   border-radius: 8px;
-  padding: 20px;
+  padding: 25px; /* Increased padding for better spacing */
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  margin: 0 auto; /* Center the chart container */
+  max-width: 900px; /* Maximum width to prevent overly wide charts */
 }
 
 .chart-wrapper h3 {
   margin-top: 0;
-  margin-bottom: 15px;
+  margin-bottom: 20px; /* Increased margin below chart headers */
   color: #333;
   text-align: center;
   font-size: 1.3rem;
+  padding-bottom: 5px;
+  border-bottom: 1px solid #eaeaea;
 }
 
 /* Tables styling */
 .analysis-details {
   background-color: #f8f9fa;
+  padding: 25px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-top: 20px;
+}
+
+.analysis-details h3 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: #333;
+  text-align: center;
+  font-size: 1.3rem;
+}
+
+.distribution-tables {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.distribution-table {
+  background-color: #ffffff;
+  border-radius: 8px;
   padding: 20px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.distribution-table h4 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #444;
+  font-size: 1.1rem;
+  text-align: center;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 8px;
+}
+
+.table-responsive {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.distribution-table table {
+  width: 100%;
+  border-collapse: collapse;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.distribution-table th, 
+.distribution-table td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #e6e6e6;
+}
+
+.distribution-table th {
+  background-color: #eef2f7;
+  color: #4a5568;
+  font-weight: 600;
+}
+
+.distribution-table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+.distribution-table td:nth-child(2),
+.distribution-table td:nth-child(3) {
+  text-align: right;
+}
+
+.distribution-table th:nth-child(2),
+.distribution-table th:nth-child(3) {
+  text-align: right;
+}
+
+@media (min-width: 768px) {
+  .distribution-tables {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+
+  .distribution-table {
+    flex: 1;
+    max-width: calc(50% - 15px);
+  }
+  
+  /* Allow more space for charts on larger screens */
+  .chart-wrapper {
+    padding: 30px;
+  }
+}
+
+@media (min-width: 992px) {
+  /* For even larger screens, adjust chart spacing */
+  .chart-wrapper {
+    padding: 35px;
+  }
+}
   border-radius: 8px;
   margin-top: 30px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
