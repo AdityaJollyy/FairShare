@@ -1,0 +1,23 @@
+.invitation-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.invitee-contact {
+  font-size: 0.75rem;
+  color: #6c757d;
+  margin: 0.15rem 0;
+}
+
+.invitee-email:before {
+  content: "✉️";
+  margin-right: 0.25rem;
+  font-size: 0.7rem;
+}
+
+.invitee-phone:before {
+  content: "📱";
+  margin-right: 0.25rem;
+  font-size: 0.7rem;
+}

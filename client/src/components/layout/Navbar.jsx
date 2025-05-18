@@ -14,12 +14,13 @@ const Navbar = () => {
 
         // Redirect to login
         navigate('/login');
-    };
-
-    const authLinks = (
+    }; const authLinks = (
         <ul>
             <li>
                 <Link to="/dashboard">Dashboard</Link>
+            </li>
+            <li>
+                <Link to="/profile">Profile</Link>
             </li>
             <li>
                 <a href="#!" onClick={handleLogout}>

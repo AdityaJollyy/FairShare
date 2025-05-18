@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import AuthContext from '../../context/AuthContext';
 import './GroupDetail.css';
+import './InvitationStyles.css';
 
 const GroupDetail = () => {
     const { id } = useParams();
@@ -11,7 +12,9 @@ const GroupDetail = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
-    const [newMemberEmail, setNewMemberEmail] = useState('');// Fetch group details and expenses
+    const [newMemberEmail, setNewMemberEmail] = useState('');
+    const [newMemberPhone, setNewMemberPhone] = useState('');
+    const [inviteMethod, setInviteMethod] = useState('email');// Fetch group details and expenses
     useEffect(() => {
         const fetchGroupData = async () => {
             try {
@@ -161,15 +164,24 @@ const GroupDetail = () => {
         e.preventDefault();
 
         try {
-            const res = await axios.post(`/groups/${id}/invitations`, { email: newMemberEmail });
+            // Determine which field to use based on invite method
+            const inviteData = inviteMethod === 'email'
+                ? { email: newMemberEmail }
+                : { phone: newMemberPhone };
+
+            const res = await axios.post(`/groups/${id}/invitations`, inviteData);
             setGroup(res.data.group);
+
+            // Clear input fields
             setNewMemberEmail('');
+            setNewMemberPhone('');
 
             // Show success message
             setError('');
 
-            // Display success message
-            setSuccessMessage(`Invitation sent to ${newMemberEmail} successfully!`);
+            // Build appropriate success message
+            const invitedContact = inviteMethod === 'email' ? newMemberEmail : newMemberPhone;
+            setSuccessMessage(`Invitation sent to ${invitedContact} successfully!`);
 
             // Clear success message after 5 seconds
             setTimeout(() => {
@@ -182,10 +194,16 @@ const GroupDetail = () => {
                 const invitationData = {
                     groupId: id,
                     groupName: group.name,
-                    invitedEmail: newMemberEmail,
                     invitedBy: user._id,
                     inviterName: user.name
                 };
+
+                // Add appropriate contact info
+                if (inviteMethod === 'email') {
+                    invitationData.invitedEmail = newMemberEmail;
+                } else {
+                    invitationData.invitedPhone = newMemberPhone;
+                }
 
                 socket.emit('invitation_sent', invitationData);
 
@@ -297,19 +315,22 @@ const GroupDetail = () => {
             <div className="group-content">                <div className="members-section">
                 <h2>Members</h2>
                 <ul className="members-list">
-                    {group.members.map(member => (
-                        <li key={member.user} className="member-item">
-                            <div className="member-info">
-                                <span className="member-name">{member.name}</span>
-                            </div>                            {group.createdBy === user._id && member.user !== user._id && (
-                                <button
-                                    className="btn btn-danger btn-sm"
-                                    onClick={() => handleRemoveMember(member.user)}
-                                >
-                                    <i className="fas fa-user-minus"></i> Remove
-                                </button>
-                            )}
-                        </li>
+                    {group.members.map(member => (<li key={member.user} className="member-item">
+                        <div className="member-info">
+                            <span className="member-name">{member.name}</span>
+                            <div className="member-contact">
+                                <span className="member-email">{member.email}</span>
+                                {member.phone && <span className="member-phone">{member.phone}</span>}
+                            </div>
+                        </div>{group.createdBy === user._id && member.user !== user._id && (
+                            <button
+                                className="btn btn-danger btn-sm"
+                                onClick={() => handleRemoveMember(member.user)}
+                            >
+                                <i className="fas fa-user-minus"></i> Remove
+                            </button>
+                        )}
+                    </li>
                     ))}
                 </ul>
 
@@ -320,29 +341,68 @@ const GroupDetail = () => {
                         <ul className="invitations-list">
                             {group.invitations
                                 .filter(invite => invite.status === 'pending')
-                                .map(invite => (
-                                    <li key={invite.user} className="invitation-item">
-                                        <div className="invitation-info">
-                                            <span className="invitee-name">{invite.name}</span>
-                                            <span className="invitation-status">Pending</span>
+                                .map(invite => (<li key={invite.user} className="invitation-item">
+                                    <div className="invitation-info">
+                                        <span className="invitee-name">{invite.name}</span>
+                                        <div className="invitee-contact">
+                                            {invite.invitedVia === 'email' ? (
+                                                <span className="invitee-email">{invite.email}</span>
+                                            ) : (
+                                                <span className="invitee-phone">{invite.phone}</span>
+                                            )}
                                         </div>
-                                    </li>
+                                        <span className="invitation-status">Pending</span>
+                                    </div>
+                                </li>
                                 ))}
                         </ul>
                     </div>
-                )}
-
-                {/* Invite member form */}                <form onSubmit={handleInviteMember} className="invite-member-form">
+                )}                {/* Invite member form */}                <form onSubmit={handleInviteMember} className="invite-member-form">
                     <h3>Invite New Member</h3>
-                    <p>Enter the email address of the person you want to invite to this group.</p>
-                    <div className="form-group">
+                    <p>Invite a person to this group by email or phone number.</p>
+
+                    <div className="invite-method-selector">
+                        <div>
+                            <input
+                                type="radio"
+                                id="email-invite"
+                                name="inviteMethod"
+                                value="email"
+                                checked={inviteMethod === 'email'}
+                                onChange={(e) => setInviteMethod(e.target.value)}
+                            />
+                            <label htmlFor="email-invite">Email</label>
+                        </div>
+                        <div>
+                            <input
+                                type="radio"
+                                id="phone-invite"
+                                name="inviteMethod"
+                                value="phone"
+                                checked={inviteMethod === 'phone'}
+                                onChange={(e) => setInviteMethod(e.target.value)}
+                            />
+                            <label htmlFor="phone-invite">Phone Number</label>
+                        </div>
+                    </div>
+
+                    <div className="form-group">                        {inviteMethod === 'email' ? (
                         <input
                             type="email"
-                            placeholder="Enter email to invite member"
+                            placeholder="Enter email"
                             value={newMemberEmail}
                             onChange={(e) => setNewMemberEmail(e.target.value)}
                             required
                         />
+                    ) : (
+                        <input
+                            type="tel"
+                            placeholder="Enter phone number"
+                            value={newMemberPhone}
+                            onChange={(e) => setNewMemberPhone(e.target.value)}
+                            required
+                        />
+                    )}
                         <button type="submit" className="btn btn-primary">
                             Send Invitation
                         </button>

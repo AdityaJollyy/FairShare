@@ -8,6 +8,7 @@ import Navbar from './components/layout/Navbar';
 import Landing from './components/layout/Landing';
 import Register from './components/auth/Register';
 import Login from './components/auth/Login';
+import Profile from './components/auth/Profile';
 import Dashboard from './components/dashboard/Dashboard';
 import GroupDetail from './components/groups/GroupDetail';
 import CreateGroup from './components/groups/CreateGroup';
@@ -111,6 +112,11 @@ function App() {
             <Route path="/" element={<Landing />} />
             <Route path="/register" element={<Register />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/profile" element={
+              <PrivateRoute>
+                <Profile />
+              </PrivateRoute>
+            } />
             <Route path="/dashboard" element={
               <PrivateRoute>
                 <Dashboard />

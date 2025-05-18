@@ -2,18 +2,20 @@ import { useState, useContext } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import AuthContext from '../../context/AuthContext';
+import './Login.css';
 
 const Login = () => {
     const { isAuthenticated, setUser, setIsAuthenticated } = useContext(AuthContext);
 
     const [formData, setFormData] = useState({
-        email: '',
+        identifier: '',
         password: ''
     });
 
+    const [loginMethod, setLoginMethod] = useState('email');
     const [error, setError] = useState('');
 
-    const { email, password } = formData;
+    const { identifier, password } = formData;
 
     const onChange = e => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -23,10 +25,19 @@ const Login = () => {
         e.preventDefault();
 
         try {
-            const res = await axios.post('/users/login', {
-                email,
+            // Create request body based on login method
+            const requestBody = {
                 password
-            });
+            };
+
+            // Add either email or phone based on login method
+            if (loginMethod === 'email') {
+                requestBody.email = identifier;
+            } else {
+                requestBody.phone = identifier;
+            }
+
+            const res = await axios.post('/users/login', requestBody);
 
             // Save token to localStorage
             localStorage.setItem('token', res.data.token);
@@ -60,12 +71,37 @@ const Login = () => {
             {error && <div className="alert alert-danger">{error}</div>}
 
             <form onSubmit={onSubmit}>
+                <div className="login-method-selector">
+                    <div>
+                        <input
+                            type="radio"
+                            id="email-login"
+                            name="loginMethod"
+                            value="email"
+                            checked={loginMethod === 'email'}
+                            onChange={() => setLoginMethod('email')}
+                        />
+                        <label htmlFor="email-login">Email</label>
+                    </div>
+                    <div>
+                        <input
+                            type="radio"
+                            id="phone-login"
+                            name="loginMethod"
+                            value="phone"
+                            checked={loginMethod === 'phone'}
+                            onChange={() => setLoginMethod('phone')}
+                        />
+                        <label htmlFor="phone-login">Phone Number</label>
+                    </div>
+                </div>
+
                 <div className="form-group">
                     <input
-                        type="email"
-                        placeholder="Email Address"
-                        name="email"
-                        value={email}
+                        type={loginMethod === 'email' ? 'email' : 'tel'}
+                        placeholder={loginMethod === 'email' ? 'Email Address' : 'Phone Number'}
+                        name="identifier"
+                        value={identifier}
                         onChange={onChange}
                         required
                     />
@@ -90,4 +126,4 @@ const Login = () => {
     );
 };
 
-export default Login; 
+export default Login;

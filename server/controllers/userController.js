@@ -5,18 +5,25 @@ const jwt = require('jsonwebtoken');
 // Register a new user
 exports.registerUser = async (req, res) => {
     try {
-        const { name, email, password } = req.body;
+        const { name, email, phone, password } = req.body;
 
-        // Check if user already exists
-        let user = await User.findOne({ email });
-        if (user) {
-            return res.status(400).json({ message: 'User already exists' });
+        // Check if user already exists with the same email
+        let userByEmail = await User.findOne({ email });
+        if (userByEmail) {
+            return res.status(400).json({ message: 'User with this email already exists' });
+        }
+
+        // Check if user already exists with the same phone
+        let userByPhone = await User.findOne({ phone });
+        if (userByPhone) {
+            return res.status(400).json({ message: 'User with this phone number already exists' });
         }
 
         // Create new user
         user = new User({
             name,
             email,
+            phone,
             password
         });
 
@@ -52,10 +59,20 @@ exports.registerUser = async (req, res) => {
 // Login user
 exports.loginUser = async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const { email, phone, password } = req.body;
 
-        // Check if user exists
-        let user = await User.findOne({ email });
+        if (!email && !phone) {
+            return res.status(400).json({ message: 'Email or phone number is required' });
+        }
+
+        // Check if user exists by email or phone
+        let user;
+        if (email) {
+            user = await User.findOne({ email });
+        } else if (phone) {
+            user = await User.findOne({ phone });
+        }
+
         if (!user) {
             return res.status(400).json({ message: 'Invalid credentials' });
         }
@@ -111,4 +128,75 @@ exports.getAllUsers = async (req, res) => {
         console.error(err.message);
         res.status(500).send('Server error');
     }
-}; 
+};
+
+// Update user profile
+exports.updateProfile = async (req, res) => {
+    try {
+        const { name } = req.body;
+
+        // Build update object
+        const updateFields = {};
+        if (name) updateFields.name = name;
+
+        // Email and phone updates are not allowed as per requirement
+
+        // Update user
+        const updatedUser = await User.findByIdAndUpdate(
+            req.user.id,
+            { $set: updateFields },
+            { new: true }
+        ).select('-password');
+
+        // If name is updated, update name in all groups where user is a member
+        if (name) {
+            const Group = require('../models/Group');
+            await Group.updateMany(
+                { 'members.user': req.user.id },
+                { $set: { 'members.$.name': name } }
+            );
+
+            // Also update name in pending invitations (both sent and received)
+            await Group.updateMany(
+                { 'invitations.user': req.user.id },
+                { $set: { 'invitations.$.name': name } }
+            );
+        }
+
+        res.json(updatedUser);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server error');
+    }
+};
+
+// Change password
+exports.changePassword = async (req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+
+        // Find user
+        const user = await User.findById(req.user.id);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Verify current password
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!isMatch) {
+            return res.status(400).json({ message: 'Current password is incorrect' });
+        }
+
+        // Hash new password
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(newPassword, salt);
+
+        // Save user with new password
+        await user.save();
+
+        res.json({ message: 'Password updated successfully' });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server error');
+    }
+};

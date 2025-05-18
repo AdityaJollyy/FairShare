@@ -23,4 +23,14 @@ router.get('/profile', auth, userController.getUserProfile);
 // @access  Private
 router.get('/', auth, userController.getAllUsers);
 
-module.exports = router; 
+// @route   PUT /api/users/profile
+// @desc    Update user profile
+// @access  Private
+router.put('/profile', auth, userController.updateProfile);
+
+// @route   PUT /api/users/password
+// @desc    Change user password
+// @access  Private
+router.put('/password', auth, userController.changePassword);
+
+module.exports = router;

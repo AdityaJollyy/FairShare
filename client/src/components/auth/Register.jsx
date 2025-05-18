@@ -2,6 +2,7 @@ import { useState, useContext } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import AuthContext from '../../context/AuthContext';
+import './Register.css';
 
 const Register = () => {
     const { isAuthenticated, setUser, setIsAuthenticated } = useContext(AuthContext);
@@ -9,13 +10,14 @@ const Register = () => {
     const [formData, setFormData] = useState({
         name: '',
         email: '',
+        phone: '',
         password: '',
         password2: ''
     });
 
     const [error, setError] = useState('');
 
-    const { name, email, password, password2 } = formData;
+    const { name, email, phone, password, password2 } = formData;
 
     const onChange = e => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -28,12 +30,11 @@ const Register = () => {
         if (password !== password2) {
             setError('Passwords do not match');
             return;
-        }
-
-        try {
+        } try {
             const res = await axios.post('/users/register', {
                 name,
                 email,
+                phone,
                 password
             });
 
@@ -78,13 +79,22 @@ const Register = () => {
                         onChange={onChange}
                         required
                     />
-                </div>
-                <div className="form-group">
+                </div>                <div className="form-group">
                     <input
                         type="email"
                         placeholder="Email Address"
                         name="email"
                         value={email}
+                        onChange={onChange}
+                        required
+                    />
+                </div>
+                <div className="form-group">
+                    <input
+                        type="tel"
+                        placeholder="Phone Number"
+                        name="phone"
+                        value={phone}
                         onChange={onChange}
                         required
                     />

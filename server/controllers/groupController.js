@@ -17,7 +17,8 @@ exports.createGroup = async (req, res) => {
             members: [{
                 user: req.user.id,
                 name: user.name,
-                email: user.email
+                email: user.email,
+                phone: user.phone
             }],
             createdBy: req.user.id
         });
@@ -78,10 +79,24 @@ exports.getGroupById = async (req, res) => {
 // Add a member to a group - Changed to invite member
 exports.inviteMember = async (req, res) => {
     try {
-        const { email } = req.body;
+        const { email, phone } = req.body;
 
-        // Find user by email
-        const user = await User.findOne({ email });
+        if (!email && !phone) {
+            return res.status(400).json({ message: 'Email or phone number is required' });
+        }
+
+        // Find user by email or phone
+        let user;
+        let invitedVia = 'email';
+
+        if (email) {
+            user = await User.findOne({ email });
+            invitedVia = 'email';
+        } else if (phone) {
+            user = await User.findOne({ phone });
+            invitedVia = 'phone';
+        }
+
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
@@ -111,13 +126,13 @@ exports.inviteMember = async (req, res) => {
         }
 
         // Get current user (inviter) info
-        const inviter = await User.findById(req.user.id);
-
-        // Add invitation to group
+        const inviter = await User.findById(req.user.id);        // Add invitation to group
         group.invitations.push({
             user: user._id,
             name: user.name,
             email: user.email,
+            phone: user.phone,
+            invitedVia,
             status: 'pending'
         });
 
@@ -181,12 +196,12 @@ exports.respondToInvitation = async (req, res) => {
         }
 
         // Update status in both user and group
-        if (response === 'accept') {
-            // Add user to group members
+        if (response === 'accept') {            // Add user to group members
             group.members.push({
                 user: req.user.id,
                 name: user.name,
-                email: user.email
+                email: user.email,
+                phone: user.phone
             });
 
             // Add group to user's groups

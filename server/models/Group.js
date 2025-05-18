@@ -7,14 +7,14 @@ const GroupSchema = new mongoose.Schema({
   },
   description: {
     type: String
-  },
-  members: [{
+  }, members: [{
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'
     },
     name: String,
-    email: String
+    email: String,
+    phone: String
   }],
   invitations: [{
     user: {
@@ -23,6 +23,12 @@ const GroupSchema = new mongoose.Schema({
     },
     name: String,
     email: String,
+    phone: String,
+    invitedVia: {
+      type: String,
+      enum: ['email', 'phone'],
+      default: 'email'
+    },
     status: {
       type: String,
       enum: ['pending', 'accepted', 'rejected'],
