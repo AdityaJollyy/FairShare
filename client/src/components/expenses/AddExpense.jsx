@@ -11,13 +11,11 @@ const AddExpense = () => {
 
     const [group, setGroup] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
-
-    const [formData, setFormData] = useState({
+    const [error, setError] = useState(''); const [formData, setFormData] = useState({
         description: '',
         amount: '',
         category: 'Other',
-        splitType: 'equal' // equal, custom
+        splitType: 'equal' // equal, percentage, custom
     });
 
     const [splits, setSplits] = useState([]);
@@ -51,9 +49,7 @@ const AddExpense = () => {
         };
 
         fetchGroup();
-    }, [groupId]);
-
-    const onChange = e => {
+    }, [groupId]); const onChange = e => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
 
         // Recalculate splits when amount or split type changes
@@ -61,13 +57,11 @@ const AddExpense = () => {
             updateSplits(e.target.name === 'amount' ? e.target.value : amount, e.target.name === 'splitType' ? e.target.value : splitType);
         }
 
-        // Reset modified members when switching to equal split
-        if (e.target.name === 'splitType' && e.target.value === 'equal') {
+        // Reset modified members when switching to equal or percentage split
+        if (e.target.name === 'splitType' && (e.target.value === 'equal' || e.target.value === 'percentage')) {
             setModifiedMembers(new Set());
         }
-    };
-
-    const updateSplits = (newAmount, newSplitType) => {
+    }; const updateSplits = (newAmount, newSplitType) => {
         const numAmount = parseFloat(newAmount) || 0;
 
         if (newSplitType === 'equal') {
@@ -80,33 +74,53 @@ const AddExpense = () => {
                 amount: parseFloat(equalAmount.toFixed(2)),
                 percentage: parseFloat((100 / memberCount).toFixed(2))
             })));
+
+            // Reset modified members when switching to equal split
+            setModifiedMembers(new Set());
+        }
+        else if (newSplitType === 'percentage') {
+            // Set equal percentages initially for percentage split
+            const memberCount = splits.length;
+            const equalPercentage = memberCount > 0 ? 100 / memberCount : 0;
+
+            setSplits(splits.map(split => {
+                const percentage = parseFloat(equalPercentage.toFixed(2));
+                return {
+                    ...split,
+                    percentage: percentage,
+                    amount: parseFloat(((numAmount * percentage) / 100).toFixed(2))
+                };
+            }));
+
+            // Reset modified members when switching to percentage split
+            setModifiedMembers(new Set());
         }
         // For custom, we don't auto-update
-    };
-
-    const handleSplitChange = (index, field, value) => {
+    }; const handleSplitChange = (index, field, value) => {
         const newSplits = [...splits];
         const numValue = parseFloat(value) || 0;
+        const totalAmount = parseFloat(amount) || 0;
 
         newSplits[index][field] = numValue;
 
-        // Update the percentage when amount changes (for display only)
+        // Update based on field changed
         if (field === 'amount') {
-            const totalAmount = parseFloat(amount) || 0;
+            // When amount is changed, update percentage
             if (totalAmount > 0) {
                 newSplits[index].percentage = parseFloat(((numValue / totalAmount) * 100).toFixed(2));
             }
-
-            // Mark this member as manually modified
-            const newModifiedMembers = new Set(modifiedMembers);
-            newModifiedMembers.add(newSplits[index].userId);
-            setModifiedMembers(newModifiedMembers);
+        } else if (field === 'percentage') {
+            // When percentage is changed, update amount
+            newSplits[index].amount = parseFloat(((totalAmount * numValue) / 100).toFixed(2));
         }
 
-        setSplits(newSplits);
-    };
+        // Mark this member as manually modified
+        const newModifiedMembers = new Set(modifiedMembers);
+        newModifiedMembers.add(newSplits[index].userId);
+        setModifiedMembers(newModifiedMembers);
 
-    // Function to distribute remaining amount equally among unmodified members
+        setSplits(newSplits);
+    };    // Function to distribute remaining amount equally among unmodified members
     const distributeRemaining = () => {
         const totalAmount = parseFloat(amount) || 0;
         if (totalAmount <= 0) {
@@ -114,61 +128,116 @@ const AddExpense = () => {
             return;
         }
 
-        // Calculate currently allocated amount
-        const allocatedAmount = splits.reduce((sum, split) => {
-            if (modifiedMembers.has(split.userId)) {
-                return sum + split.amount;
+        if (splitType === 'custom') {
+            // Calculate currently allocated amount
+            const allocatedAmount = splits.reduce((sum, split) => {
+                if (modifiedMembers.has(split.userId)) {
+                    return sum + split.amount;
+                }
+                return sum;
+            }, 0);
+
+            // Calculate remaining amount
+            const remainingAmount = totalAmount - allocatedAmount;
+
+            // Count unmodified members
+            const unmodifiedCount = splits.length - modifiedMembers.size;
+
+            if (unmodifiedCount <= 0) {
+                setError('All members have been manually assigned amounts. Please reset one member to auto-distribute.');
+                return;
             }
-            return sum;
-        }, 0);
 
-        // Calculate remaining amount
-        const remainingAmount = totalAmount - allocatedAmount;
+            // Calculate amount per unmodified member
+            const amountPerMember = remainingAmount / unmodifiedCount;
 
-        // Count unmodified members
-        const unmodifiedCount = splits.length - modifiedMembers.size;
-
-        if (unmodifiedCount <= 0) {
-            setError('All members have been manually assigned amounts. Please reset one member to auto-distribute.');
-            return;
-        }
-
-        // Calculate amount per unmodified member
-        const amountPerMember = remainingAmount / unmodifiedCount;
-
-        if (amountPerMember < 0) {
-            setError('The total of manually assigned amounts exceeds the expense total. Please adjust the values.');
-            return;
-        }
-
-        // Update splits
-        const newSplits = splits.map(split => {
-            if (!modifiedMembers.has(split.userId)) {
-                const newAmount = parseFloat(amountPerMember.toFixed(2));
-                return {
-                    ...split,
-                    amount: newAmount,
-                    percentage: parseFloat(((newAmount / totalAmount) * 100).toFixed(2))
-                };
+            if (amountPerMember < 0) {
+                setError('The total of manually assigned amounts exceeds the expense total. Please adjust the values.');
+                return;
             }
-            return split;
-        });
 
-        setSplits(newSplits);
-        setError(''); // Clear any previous errors
-    };
+            // Update splits
+            const newSplits = splits.map(split => {
+                if (!modifiedMembers.has(split.userId)) {
+                    const newAmount = parseFloat(amountPerMember.toFixed(2));
+                    return {
+                        ...split,
+                        amount: newAmount,
+                        percentage: parseFloat(((newAmount / totalAmount) * 100).toFixed(2))
+                    };
+                }
+                return split;
+            });
 
-    const resetCustomSplits = () => {
+            setSplits(newSplits);
+            setError(''); // Clear any previous errors
+        } else if (splitType === 'percentage') {
+            // Calculate currently allocated percentage
+            const allocatedPercentage = splits.reduce((sum, split) => {
+                if (modifiedMembers.has(split.userId)) {
+                    return sum + split.percentage;
+                }
+                return sum;
+            }, 0);
+
+            // Calculate remaining percentage
+            const remainingPercentage = 100 - allocatedPercentage;
+
+            // Count unmodified members
+            const unmodifiedCount = splits.length - modifiedMembers.size;
+
+            if (unmodifiedCount <= 0) {
+                setError('All members have been manually assigned percentages. Please reset one member to auto-distribute.');
+                return;
+            }
+
+            // Calculate percentage per unmodified member
+            const percentagePerMember = remainingPercentage / unmodifiedCount;
+
+            if (percentagePerMember < 0) {
+                setError('The total of manually assigned percentages exceeds 100%. Please adjust the values.');
+                return;
+            }
+
+            // Update splits
+            const newSplits = splits.map(split => {
+                if (!modifiedMembers.has(split.userId)) {
+                    const newPercentage = parseFloat(percentagePerMember.toFixed(2));
+                    return {
+                        ...split,
+                        percentage: newPercentage,
+                        amount: parseFloat(((totalAmount * newPercentage) / 100).toFixed(2))
+                    };
+                }
+                return split;
+            });
+
+            setSplits(newSplits);
+            setError(''); // Clear any previous errors
+        }
+    }; const resetCustomSplits = () => {
         // Reset all splits to equal
         const numAmount = parseFloat(amount) || 0;
         const memberCount = splits.length;
         const equalAmount = memberCount > 0 ? numAmount / memberCount : 0;
+        const equalPercentage = memberCount > 0 ? 100 / memberCount : 0;
 
-        setSplits(splits.map(split => ({
-            ...split,
-            amount: parseFloat(equalAmount.toFixed(2)),
-            percentage: parseFloat((100 / memberCount).toFixed(2))
-        })));
+        if (splitType === 'custom') {
+            setSplits(splits.map(split => ({
+                ...split,
+                amount: parseFloat(equalAmount.toFixed(2)),
+                percentage: parseFloat(equalPercentage.toFixed(2))
+            })));
+        } else if (splitType === 'percentage') {
+            setSplits(splits.map(split => {
+                const percentage = parseFloat(equalPercentage.toFixed(2));
+                return {
+                    ...split,
+                    percentage: percentage,
+                    amount: parseFloat(((numAmount * percentage) / 100).toFixed(2))
+                };
+            }));
+        }
 
         // Clear all modified members
         setModifiedMembers(new Set());
@@ -273,9 +342,7 @@ const AddExpense = () => {
                         <option value="Travel">Travel</option>
                         <option value="Other">Other</option>
                     </select>
-                </div>
-
-                <div className="form-group">
+                </div>                <div className="form-group">
                     <label>Split Type</label>
                     <div className="split-type-options">
                         <div>
@@ -292,6 +359,17 @@ const AddExpense = () => {
                         <div>
                             <input
                                 type="radio"
+                                id="percentage"
+                                name="splitType"
+                                value="percentage"
+                                checked={splitType === 'percentage'}
+                                onChange={onChange}
+                            />
+                            <label htmlFor="percentage">Percentage</label>
+                        </div>
+                        <div>
+                            <input
+                                type="radio"
                                 id="custom"
                                 name="splitType"
                                 value="custom"
@@ -301,11 +379,9 @@ const AddExpense = () => {
                             <label htmlFor="custom">Custom</label>
                         </div>
                     </div>
-                </div>
-
-                <div className="splits-section">
+                </div>                <div className="splits-section">
                     <h3>Split Among</h3>
-                    {splitType === 'custom' && (
+                    {(splitType === 'custom' || splitType === 'percentage') && (
                         <div className="custom-split-actions">
                             <button
                                 type="button"
@@ -343,10 +419,11 @@ const AddExpense = () => {
                                         <input
                                             type="number"
                                             value={split.percentage}
-                                            readOnly
+                                            onChange={(e) => handleSplitChange(index, 'percentage', e.target.value)}
                                             step="0.01"
                                             min="0"
                                             max="100"
+                                            disabled={splitType !== 'percentage'}
                                         />
                                     </div>
                                 </div>
