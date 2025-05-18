@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useContext } from 'react';
+/* eslint-disable no-unused-vars */
+import { useState, useEffect, useRef, useContext, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import * as d3 from 'd3';
@@ -45,20 +46,18 @@ const SettlementPlan = () => {
         if (socket) {
             // Join the group room
             socket.emit('join_group', groupId);
-            console.log(`Joined group ${groupId} for settlement updates`);
-
-            // Listen for expense changes that would affect the settlement plan
-            socket.on('expense_added', (data) => {
+            console.log(`Joined group ${groupId} for settlement updates`);            // Listen for expense changes that would affect the settlement plan
+            socket.on('expense_added', () => {
                 console.log('New expense added, refreshing settlement plan');
                 fetchData();
             });
 
-            socket.on('expense_deleted', (data) => {
+            socket.on('expense_deleted', () => {
                 console.log('Expense deleted, refreshing settlement plan');
                 fetchData();
             });
 
-            socket.on('settlement_update', (data) => {
+            socket.on('settlement_update', () => {
                 console.log('Settlement update, refreshing settlement plan');
                 fetchData();
             });
@@ -97,14 +96,13 @@ const SettlementPlan = () => {
             }
             clearInterval(intervalId);
         };
-    }, [groupId, socket]);
-
-    // Create graph visualization
+    }, [groupId, socket]);    // Create graph visualization when data is loaded
     useEffect(() => {
         if (!loading && settlements.length > 0 && graphRef.current) {
             createGraph();
         }
-    }, [loading, settlements]); const createGraph = () => {
+    }, [loading, settlements, createGraph]); // Including createGraph in dependencies    // Define createGraph with useCallback to properly handle dependencies
+    const createGraph = useCallback(() => {
         // Clear previous graph
         d3.select(graphRef.current).selectAll('*').remove();
 
@@ -246,9 +244,7 @@ const SettlementPlan = () => {
             .data(nodes)
             .enter()
             .append('g')
-            .attr('class', 'node-label');
-
-        // Label background for better readability
+            .attr('class', 'node-label');        // Label background for better readability
         labelGroup.append('rect')
             .attr('fill', 'white')
             .attr('opacity', 0.95)
@@ -304,15 +300,13 @@ const SettlementPlan = () => {
             .data(links)
             .enter()
             .append('g')
-            .attr('class', 'amount-label');
-
-        linkLabels.append('rect')
-            .attr('fill', '#f8f8f8')
-            .attr('opacity', 0.95)
-            .attr('rx', 10)
-            .attr('ry', 10)
-            .attr('stroke', '#ccc')
-            .attr('stroke-width', 0.5);
+            .attr('class', 'amount-label'); linkLabels.append('rect')
+                .attr('fill', '#f8f8f8')
+                .attr('opacity', 0.95)
+                .attr('rx', 10)
+                .attr('ry', 10)
+                .attr('stroke', '#ccc')
+                .attr('stroke-width', 0.5);
 
         const amountTexts = linkLabels.append('text')
             .text(d => `₹${d.value.toFixed(0)}`) // Simplified rupee amount
@@ -419,7 +413,8 @@ const SettlementPlan = () => {
             d.fx = null;
             d.fy = null;
         }
-    }; if (loading) {
+    }, [group, settlements]); // Add the dependencies
+    if (loading) {
         return <div className="container">Loading...</div>;
     }
 
@@ -471,4 +466,4 @@ const SettlementPlan = () => {
     );
 };
 
-export default SettlementPlan; 
+export default SettlementPlan;

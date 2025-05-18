@@ -94,7 +94,7 @@ function App() {
         socket.disconnect();
       }
     };
-  }, []);
+  }, []); // Empty dependency array to run only once
 
   // Private route component
   const PrivateRoute = ({ children }) => {

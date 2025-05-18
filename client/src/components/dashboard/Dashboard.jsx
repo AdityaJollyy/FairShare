@@ -75,15 +75,14 @@ const Dashboard = () => {
 
             // Set up a polling interval to refresh data periodically
             const intervalId = setInterval(() => {
-                console.log('Refreshing dashboard data...');
-                // Refresh invitations
+                console.log('Refreshing dashboard data...');                // Refresh invitations
                 axios.get('/groups/invitations/pending')
-                    .then(res => setInvitations(res.data))
+                    .then(response => setInvitations(response.data))
                     .catch(err => console.error('Error fetching invitations:', err));
 
                 // Refresh groups
                 axios.get('/groups')
-                    .then(res => setGroups(res.data))
+                    .then(response => setGroups(response.data))
                     .catch(err => console.error('Error fetching groups:', err));
             }, 15000); // Refresh every 15 seconds
 
@@ -125,7 +124,7 @@ const Dashboard = () => {
         }
     }; const handleInvitationResponse = async (groupId, response) => {
         try {
-            const res = await axios.post(`/groups/${groupId}/invitations/respond`, { response });
+            await axios.post(`/groups/${groupId}/invitations/respond`, { response });
 
             // Remove invitation from the list
             setInvitations(prevInvitations =>

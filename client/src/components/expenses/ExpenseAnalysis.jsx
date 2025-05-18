@@ -43,25 +43,21 @@ const ExpenseAnalysis = () => {
         if (socket) {
             // Join the group room
             socket.emit('join_group', groupId);
-            console.log(`Joined group ${groupId} for expense analysis updates`);
-
-            // Listen for expense changes that would affect the analysis
-            socket.on('expense_added', (data) => {
+            console.log(`Joined group ${groupId} for expense analysis updates`);            // Listen for expense changes that would affect the analysis
+            socket.on('expense_added', () => {
                 console.log('New expense added, refreshing expense analysis');
                 fetchData();
             });
 
-            socket.on('expense_deleted', (data) => {
+            socket.on('expense_deleted', () => {
                 console.log('Expense deleted, refreshing expense analysis');
                 fetchData();
             });
 
-            socket.on('settlement_update', (data) => {
+            socket.on('settlement_update', () => {
                 console.log('Settlement update, refreshing expense analysis');
                 fetchData();
-            });
-
-            // Also listen for member changes that might affect analysis
+            });            // Also listen for member changes that might affect analysis
             socket.on('member_added', (data) => {
                 if (data.groupId === groupId) {
                     console.log('Member added, refreshing expense analysis');
@@ -221,4 +217,4 @@ const ExpenseAnalysis = () => {
     );
 };
 
-export default ExpenseAnalysis; 
+export default ExpenseAnalysis;

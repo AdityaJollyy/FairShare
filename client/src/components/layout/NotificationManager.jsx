@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useContext } from 'react';
 import AuthContext from '../../context/AuthContext';
 import Notification from './Notification';
@@ -43,17 +44,15 @@ const NotificationManager = () => {
                     type: 'success'
                 };
                 setNotifications(prevNotifications => [...prevNotifications, notification]);
-            });
-
-            // Listen for expense notifications
-            socket.on('expense_added', (data) => {
+            });            // Listen for expense notifications
+            socket.on('expense_added', () => {
                 const notification = {
                     id: new Date().getTime(),
                     message: `New expense added in a group you belong to.`,
                     type: 'info'
                 };
                 setNotifications(prevNotifications => [...prevNotifications, notification]);
-            });            // Listen for expense settlement notifications
+            });// Listen for expense settlement notifications
             socket.on('settlement_update', (data) => {
                 if (data.expense) {
                     // If the current user is the one who paid and someone requested settlement
