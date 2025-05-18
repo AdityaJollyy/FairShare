@@ -3,7 +3,6 @@ import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import AuthContext from '../../context/AuthContext';
 import './GroupDetail.css';
-import './InvitationStyles.css';
 
 const GroupDetail = () => {
     const { id } = useParams();
@@ -283,46 +282,51 @@ const GroupDetail = () => {
         );
     }
 
-    return (
-        <section className="container">            <Link to="/dashboard" className="btn btn-light">
+    return (<section className="container">
+        <Link to="/dashboard" className="btn btn-light">
             <i className="fas fa-arrow-left"></i> Back to Dashboard
         </Link>
 
-            <div className="group-header">
-                <h1>{group.name}</h1>
-                <p>{group.description}</p>
-            </div>
+        <div className="group-header">
+            <h1>{group.name}</h1>
+            <p>{group.description}</p>
+        </div>
 
-            {error && <div className="alert alert-danger">{error}</div>}
-            {successMessage && <div className="alert alert-success">{successMessage}</div>}            <div className="group-actions">
-                <Link to={`/expenses/add/${id}`} className="btn btn-primary">
-                    <i className="fas fa-plus-circle"></i> Add Expense
-                </Link>
-                <Link to={`/expenses/settlement/${id}`} className="btn btn-success">
-                    <i className="fas fa-exchange-alt"></i> View Settlement Plan
-                </Link>
-                <Link to={`/expenses/analysis/${id}`} className="btn btn-info">
-                    <i className="fas fa-chart-pie"></i> View Expense Analysis
-                </Link>
-                {/* Show Leave Group button for non-owners */}
-                {group.createdBy !== user._id && (
-                    <button className="btn btn-warning" onClick={handleLeaveGroup}>
-                        <i className="fas fa-sign-out-alt"></i> Leave Group
-                    </button>
-                )}
-            </div>
+        {error && <div className="alert alert-danger">{error}</div>}
+        {successMessage && <div className="alert alert-success">{successMessage}</div>}            <div className="group-actions">
+            <Link to={`/expenses/add/${id}`} className="btn btn-primary">
+                <i className="fas fa-plus-circle"></i> Add Expense
+            </Link>
+            <Link to={`/expenses/settlement/${id}`} className="btn btn-success">
+                <i className="fas fa-exchange-alt"></i> View Settlement Plan
+            </Link>
+            <Link to={`/expenses/analysis/${id}`} className="btn btn-info">
+                <i className="fas fa-chart-pie"></i> View Expense Analysis
+            </Link>
+            {/* Show Leave Group button for non-owners */}
+            {group.createdBy !== user._id && (
+                <button className="btn btn-warning" onClick={handleLeaveGroup}>
+                    <i className="fas fa-sign-out-alt"></i> Leave Group
+                </button>
+            )}
+        </div>
 
-            <div className="group-content">                <div className="members-section">
-                <h2>Members</h2>
-                <ul className="members-list">
-                    {group.members.map(member => (<li key={member.user} className="member-item">
+        <div className="group-content">                <div className="members-section">
+            <h2>Members</h2>
+            <ul className="members-list">
+                {group.members.map(member => (
+                    <li key={member.user} className="member-item">
                         <div className="member-info">
                             <span className="member-name">{member.name}</span>
                             <div className="member-contact">
                                 <span className="member-email">{member.email}</span>
                                 {member.phone && <span className="member-phone">{member.phone}</span>}
                             </div>
-                        </div>{group.createdBy === user._id && member.user !== user._id && (
+                            {member.user === group.createdBy && (
+                                <span className="owner-badge">Group Owner</span>
+                            )}
+                        </div>
+                        {group.createdBy === user._id && member.user !== user._id && (
                             <button
                                 className="btn btn-danger btn-sm"
                                 onClick={() => handleRemoveMember(member.user)}
@@ -331,62 +335,63 @@ const GroupDetail = () => {
                             </button>
                         )}
                     </li>
-                    ))}
-                </ul>
+                ))}
+            </ul>
 
-                {/* Pending Invitations Section */}
-                {group.invitations && group.invitations.filter(invite => invite.status === 'pending').length > 0 && (
-                    <div className="pending-invitations">
-                        <h3>Pending Invitations</h3>
-                        <ul className="invitations-list">
-                            {group.invitations
-                                .filter(invite => invite.status === 'pending')
-                                .map(invite => (<li key={invite.user} className="invitation-item">
-                                    <div className="invitation-info">
-                                        <span className="invitee-name">{invite.name}</span>
-                                        <div className="invitee-contact">
-                                            {invite.invitedVia === 'email' ? (
-                                                <span className="invitee-email">{invite.email}</span>
-                                            ) : (
-                                                <span className="invitee-phone">{invite.phone}</span>
-                                            )}
-                                        </div>
-                                        <span className="invitation-status">Pending</span>
+            {/* Pending Invitations Section */}
+            {group.invitations && group.invitations.filter(invite => invite.status === 'pending').length > 0 && (
+                <div className="pending-invitations">
+                    <h3>Pending Invitations</h3>
+                    <ul className="invitations-list">
+                        {group.invitations
+                            .filter(invite => invite.status === 'pending')
+                            .map(invite => (<li key={invite.user} className="invitation-item">
+                                <div className="invitation-info">
+                                    <span className="invitee-name">{invite.name}</span>
+                                    <div className="invitee-contact">
+                                        {invite.invitedVia === 'email' ? (
+                                            <span className="invitee-email">{invite.email}</span>
+                                        ) : (
+                                            <span className="invitee-phone">{invite.phone}</span>
+                                        )}
                                     </div>
-                                </li>
-                                ))}
-                        </ul>
-                    </div>
-                )}                {/* Invite member form */}                <form onSubmit={handleInviteMember} className="invite-member-form">
-                    <h3>Invite New Member</h3>
-                    <p>Invite a person to this group by email or phone number.</p>
+                                    <span className="invitation-status">Pending</span>
+                                </div>
+                            </li>
+                            ))}
+                    </ul>
+                </div>
+            )}                {/* Invite member form */}                <form onSubmit={handleInviteMember} className="invite-member-form">
+                <h3>Invite New Member</h3>
+                <p>Invite a person to this group by email or phone number.</p>
 
-                    <div className="invite-method-selector">
-                        <div>
-                            <input
-                                type="radio"
-                                id="email-invite"
-                                name="inviteMethod"
-                                value="email"
-                                checked={inviteMethod === 'email'}
-                                onChange={(e) => setInviteMethod(e.target.value)}
-                            />
-                            <label htmlFor="email-invite">Email</label>
-                        </div>
-                        <div>
-                            <input
-                                type="radio"
-                                id="phone-invite"
-                                name="inviteMethod"
-                                value="phone"
-                                checked={inviteMethod === 'phone'}
-                                onChange={(e) => setInviteMethod(e.target.value)}
-                            />
-                            <label htmlFor="phone-invite">Phone Number</label>
-                        </div>
+                <div className="invite-method-selector">
+                    <div>
+                        <input
+                            type="radio"
+                            id="email-invite"
+                            name="inviteMethod"
+                            value="email"
+                            checked={inviteMethod === 'email'}
+                            onChange={(e) => setInviteMethod(e.target.value)}
+                        />
+                        <label htmlFor="email-invite">Email</label>
                     </div>
+                    <div>
+                        <input
+                            type="radio"
+                            id="phone-invite"
+                            name="inviteMethod"
+                            value="phone"
+                            checked={inviteMethod === 'phone'}
+                            onChange={(e) => setInviteMethod(e.target.value)}
+                        />
+                        <label htmlFor="phone-invite">Phone Number</label>
+                    </div>
+                </div>
 
-                    <div className="form-group">                        {inviteMethod === 'email' ? (
+                <div className="form-group">
+                    {inviteMethod === 'email' ? (
                         <input
                             type="email"
                             placeholder="Enter email"
@@ -397,75 +402,77 @@ const GroupDetail = () => {
                     ) : (
                         <input
                             type="tel"
-                            placeholder="Enter phone number"
+                            placeholder="Enter phone"
                             value={newMemberPhone}
                             onChange={(e) => setNewMemberPhone(e.target.value)}
                             required
                         />
                     )}
-                        <button type="submit" className="btn btn-primary">
-                            Send Invitation
-                        </button>
+                    <button type="submit" className="btn btn-primary">
+                        <i className="fas fa-paper-plane"></i> Send Invitation
+                    </button>
+                </div>
+            </form>
+        </div>                <div className="expenses-section">
+                <h2>Expenses</h2>
+                {expenses.length === 0 ? (
+                    <div className="empty-state">
+                        <i className="fas fa-receipt empty-icon"></i>
+                        <p>No expenses yet. Add one to get started!</p>
+                        <Link to={`/expenses/add/${id}`} className="btn btn-primary">
+                            <i className="fas fa-plus-circle"></i> Add First Expense
+                        </Link>
                     </div>
-                </form>
-            </div>                <div className="expenses-section">
-                    <h2>Expenses</h2>
-                    {expenses.length === 0 ? (
-                        <div className="empty-state">
-                            <i className="fas fa-receipt empty-icon"></i>
-                            <p>No expenses yet. Add one to get started!</p>
-                            <Link to={`/expenses/add/${id}`} className="btn btn-primary">
-                                <i className="fas fa-plus-circle"></i> Add First Expense
-                            </Link>
-                        </div>
-                    ) : (
-                        <div className="expenses-list">
-                            {expenses.map(expense => (
-                                <div key={expense._id} className="expense-item">
-                                    <div className="expense-header">
-                                        <h3>{expense.description}</h3>
-                                        <span className="expense-amount">Rs. {expense.amount.toFixed(2)}</span>                                        {expense.paidBy.user === user._id && (
-                                            <button
-                                                className="btn btn-sm btn-danger"
-                                                onClick={async () => {
-                                                    try {
-                                                        if (window.confirm('Are you sure you want to delete this expense?')) {
-                                                            await axios.delete(`/expenses/${expense._id}`);
-                                                            // Update the expenses state immediately
-                                                            setExpenses(prevExpenses =>
-                                                                prevExpenses.filter(e => e._id !== expense._id)
-                                                            );                                                            // Emit socket event for real-time update
-                                                            if (socket) {
-                                                                console.log('Emitting expense_deleted event');
-                                                                socket.emit('expense_deleted', {
-                                                                    groupId: id,
-                                                                    expenseId: expense._id
-                                                                });
-                                                            }
-                                                        }
-                                                    } catch (err) {
-                                                        setError('Failed to delete expense');
-                                                        console.error('Error deleting expense:', err);
+                ) : (
+                    <div className="expenses-list">
+                        {expenses.map(expense => (
+                            <div key={expense._id} className="expense-item">                                    <div className="expense-header">
+                                <h3>{expense.description}</h3>
+                                <span className="expense-amount">Rs. {expense.amount.toFixed(2)}</span>
+                                {expense.paidBy.user === user._id && (
+                                    <button
+                                        className="btn btn-danger btn-sm"
+                                        onClick={async () => {
+                                            try {
+                                                if (window.confirm('Are you sure you want to delete this expense?')) {
+                                                    await axios.delete(`/expenses/${expense._id}`);
+                                                    // Update the expenses state immediately
+                                                    setExpenses(prevExpenses =>
+                                                        prevExpenses.filter(e => e._id !== expense._id)
+                                                    );
+                                                    // Emit socket event for real-time update
+                                                    if (socket) {
+                                                        console.log('Emitting expense_deleted event');
+                                                        socket.emit('expense_deleted', {
+                                                            groupId: id,
+                                                            expenseId: expense._id
+                                                        });
                                                     }
-                                                }}
-                                            >
-                                                <i className="fas fa-trash-alt"></i> Delete
-                                            </button>
-                                        )}
-                                    </div>                                    <div className="expense-details">
-                                        <p>Paid by: {expense.paidBy.name}</p>
-                                        <p>Date: {new Date(expense.date).toLocaleDateString()} {new Date(expense.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                                        <p>Category: {expense.category}</p>
-                                    </div>
-                                    <div className="expense-splits">
-                                        <h4>Split Among:</h4>
-                                        <ul>                                            {expense.splitAmong.map(split => (<li key={split.user} className={`split-item ${split.settled ? 'settled' : ''} ${split.pendingSettlement ? 'pending-settlement' : ''}`}>
+                                                }
+                                            } catch (err) {
+                                                setError('Failed to delete expense');
+                                                console.error('Error deleting expense:', err);
+                                            }
+                                        }}
+                                    >
+                                        <i className="fas fa-trash-alt"></i> Delete
+                                    </button>
+                                )}
+                            </div><div className="expense-details">
+                                    <p>Paid by: {expense.paidBy.name}</p>
+                                    <p>Date: {new Date(expense.date).toLocaleDateString()} {new Date(expense.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                                    <p>Category: {expense.category}</p>
+                                </div>
+                                <div className="expense-splits">
+                                    <h4>Split Among:</h4>
+                                    <ul>                                            {expense.splitAmong.map(split => (
+                                        <li key={split.user} className={`split-item ${split.settled ? 'settled' : ''} ${split.pendingSettlement ? 'pending-settlement' : ''}`}>
                                             <span>{split.name}: Rs. {split.amount.toFixed(2)}</span>
 
                                             {/* User who needs to pay - can request settlement */}
                                             {split.user === user._id && !split.settled && !split.pendingSettlement && expense.paidBy.user !== user._id && (
                                                 <button
-                                                    className="btn btn-sm btn-primary"
+                                                    className="btn btn-primary btn-sm"
                                                     onClick={async () => {
                                                         try {
                                                             const response = await axios.put(`/expenses/settle/${expense._id}`, {
@@ -503,7 +510,7 @@ const GroupDetail = () => {
                                                 <div className="settlement-actions">
                                                     <span className="pending-badge">Marked for Settlement</span>
                                                     <button
-                                                        className="btn btn-sm btn-outline-secondary"
+                                                        className="btn btn-outline-secondary btn-sm"
                                                         onClick={async () => {
                                                             try {
                                                                 const response = await axios.put(`/expenses/settle/${expense._id}`, {
@@ -535,13 +542,11 @@ const GroupDetail = () => {
                                                         <i className="fas fa-times"></i> Cancel
                                                     </button>
                                                 </div>
-                                            )}
-
-                                            {/* Person who paid - can confirm or reject settlement */}
+                                            )}                                            {/* Person who paid - can confirm or reject settlement */}
                                             {expense.paidBy.user === user._id && split.pendingSettlement && (
                                                 <div className="settlement-actions">
                                                     <button
-                                                        className="btn btn-sm btn-success"
+                                                        className="btn btn-success btn-sm"
                                                         onClick={async () => {
                                                             try {
                                                                 const response = await axios.put(`/expenses/settle/${expense._id}`, {
@@ -571,10 +576,10 @@ const GroupDetail = () => {
                                                             }
                                                         }}
                                                     >
-                                                        <i className="fas fa-check"></i> Settled
+                                                        <i className="fas fa-check"></i> Confirm Settled
                                                     </button>
                                                     <button
-                                                        className="btn btn-sm btn-danger"
+                                                        className="btn btn-danger btn-sm"
                                                         onClick={async () => {
                                                             try {
                                                                 const response = await axios.put(`/expenses/settle/${expense._id}`, {
@@ -604,23 +609,23 @@ const GroupDetail = () => {
                                                             }
                                                         }}
                                                     >
-                                                        <i className="fas fa-times"></i> Not Settled
+                                                        <i className="fas fa-times"></i> Reject
                                                     </button>
                                                 </div>
                                             )}
 
                                             {split.settled && <span className="settled-badge">Settled</span>}
                                         </li>
-                                        ))}
-                                        </ul>
-                                    </div>
+                                    ))}
+                                    </ul>
                                 </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
-        </section>
+        </div>
+    </section>
     );
 };
 
