@@ -14,39 +14,65 @@ const SettlementPlan = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
-    const graphRef = useRef(null);    // Fetch group and settlement data
+    const graphRef = useRef(null);
+
+    // Define fetchData as a reusable function with useCallback
+    const fetchData = useCallback(async () => {
+        try {
+            // Get group details
+            const groupRes = await axios.get(`/groups/${groupId}`);
+            setGroup(groupRes.data);
+
+            // Get settlement plan
+            const settlementRes = await axios.get(`/expenses/settlement/${groupId}`);
+            // Sort settlements by date in descending order if they have date information
+            const sortedSettlements = settlementRes.data.sort((a, b) => {
+                // If date information is available, sort by it
+                if (a.date && b.date) {
+                    return new Date(b.date) - new Date(a.date);
+                }
+                return 0; // Keep original order if no date information
+            });
+            setSettlements(sortedSettlements);
+
+            setLoading(false);
+        } catch (err) {
+            setError('Error fetching settlement data');
+            console.error('Error fetching settlement data:', err);
+            setLoading(false);
+        }
+    }, [groupId]);
+    // Fetch group and settlement data
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                // Get group details
-                const groupRes = await axios.get(`/groups/${groupId}`);
-                setGroup(groupRes.data);                // Get settlement plan
-                const settlementRes = await axios.get(`/expenses/settlement/${groupId}`);
-                // Sort settlements by date in descending order if they have date information
-                const sortedSettlements = settlementRes.data.sort((a, b) => {
-                    // If date information is available, sort by it
-                    if (a.date && b.date) {
-                        return new Date(b.date) - new Date(a.date);
-                    }
-                    return 0; // Keep original order if no date information
-                });
-                setSettlements(sortedSettlements);
-
-                setLoading(false);
-            } catch (err) {
-                setError('Error fetching settlement data');
-                console.error('Error fetching settlement data:', err);
-                setLoading(false);
-            }
-        };
-
         fetchData();
 
-        // Set up socket event listeners for real-time updates
-        if (socket) {
+        // Set up a polling interval as a backup for real-time updates
+        const intervalId = setInterval(() => {
+            console.log('Polling for settlement updates');
+            fetchData();
+        }, 30000);
+
+        // Cleanup
+        return () => {
+            clearInterval(intervalId);
+        };
+    }, [fetchData]);
+
+    // Set up socket listeners when socket changes
+    useEffect(() => {
+        // Skip if no socket or not connected
+        if (!socket) {
+            console.log('No socket available for settlement updates');
+            return;
+        }
+
+        // Only setup listeners when socket is connected
+        const setupSocketListeners = () => {
             // Join the group room
             socket.emit('join_group', groupId);
-            console.log(`Joined group ${groupId} for settlement updates`);            // Listen for expense changes that would affect the settlement plan
+            console.log(`Joined group ${groupId} for settlement updates`);
+
+            // Listen for expense changes that would affect the settlement plan
             socket.on('expense_added', () => {
                 console.log('New expense added, refreshing settlement plan');
                 fetchData();
@@ -76,32 +102,37 @@ const SettlementPlan = () => {
                     fetchData();
                 }
             });
-        }
+        };
 
-        // Set up a polling interval as a backup for real-time updates
-        const intervalId = setInterval(() => {
-            console.log('Polling for settlement updates');
-            fetchData();
-        }, 30000); // Poll every 30 seconds
+        // Add connection listener
+        socket.on('connect', setupSocketListeners);
+
+        // Setup listeners immediately if already connected
+        if (socket.connected) {
+            setupSocketListeners();
+        }
 
         // Cleanup
         return () => {
-            if (socket) {
+            if (socket.connected) {
                 socket.emit('leave_group', groupId);
                 socket.off('expense_added');
                 socket.off('expense_deleted');
                 socket.off('settlement_update');
                 socket.off('member_added');
                 socket.off('member_removed');
+                socket.off('connect');
             }
-            clearInterval(intervalId);
         };
-    }, [groupId, socket]);    // Create graph visualization when data is loaded
+    }, [socket, groupId, fetchData]);
+
+    // Create graph visualization when data is loaded
     useEffect(() => {
         if (!loading && settlements.length > 0 && graphRef.current) {
             createGraph();
         }
-    }, [loading, settlements, createGraph]); // Including createGraph in dependencies    // Define createGraph with useCallback to properly handle dependencies
+    }, [loading, settlements]); // Removed createGraph from dependencies
+    // Define createGraph with useCallback to properly handle dependencies
     const createGraph = useCallback(() => {
         // Clear previous graph
         d3.select(graphRef.current).selectAll('*').remove();
@@ -406,14 +437,12 @@ const SettlementPlan = () => {
         function dragged(event, d) {
             d.fx = event.x;
             d.fy = event.y;
-        }
-
-        function dragended(event, d) {
+        } function dragended(event, d) {
             if (!event.active) simulation.alphaTarget(0);
             d.fx = null;
             d.fy = null;
         }
-    }, [group, settlements]); // Add the dependencies
+    }, [group, settlements]); // Keep these dependencies stable
     if (loading) {
         return <div className="container">Loading...</div>;
     }

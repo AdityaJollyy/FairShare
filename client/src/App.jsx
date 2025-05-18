@@ -29,7 +29,52 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [socket, setSocket] = useState(null);
 
-  // Load user on initial render
+  // Setup socket connection
+  useEffect(() => {
+    // Create socket instance only once
+    const socketInstance = io('http://localhost:5000', {
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 20000,
+      autoConnect: false, // Don't connect automatically
+      transports: ['websocket', 'polling'] // Try websocket first, fallback to polling
+    });
+
+    // Set up socket connection and error handling
+    socketInstance.on('connect', () => {
+      console.log('Socket connected:', socketInstance.id);
+    });
+
+    socketInstance.on('connect_error', (error) => {
+      console.error('Socket connection error:', error);
+    });
+
+    socketInstance.on('disconnect', (reason) => {
+      console.log('Socket disconnected:', reason);
+
+      // Attempt to reconnect if not closed intentionally
+      if (reason === 'io server disconnect') {
+        socketInstance.connect();
+      }
+    });
+
+    socketInstance.on('reconnect', (attemptNumber) => {
+      console.log('Socket reconnected after', attemptNumber, 'attempts');
+    });
+
+    setSocket(socketInstance);
+
+    // Cleanup socket connection
+    return () => {
+      if (socketInstance) {
+        console.log('Disconnecting socket');
+        socketInstance.disconnect();
+      }
+    };
+  }, []); // Empty dependency array to run only once
+
   useEffect(() => {
     const loadUser = async () => {
       const token = localStorage.getItem('token');
@@ -42,39 +87,6 @@ function App() {
           const res = await axios.get('/users/profile');
           setUser(res.data);
           setIsAuthenticated(true);
-
-          // Connect to socket
-          const socketInstance = io('http://localhost:5000', {
-            reconnection: true,
-            reconnectionAttempts: 5,
-            reconnectionDelay: 1000,
-            reconnectionDelayMax: 5000,
-            timeout: 20000
-          });
-
-          // Set up socket connection and error handling
-          socketInstance.on('connect', () => {
-            console.log('Socket connected:', socketInstance.id);
-          });
-
-          socketInstance.on('connect_error', (error) => {
-            console.error('Socket connection error:', error);
-          });
-
-          socketInstance.on('disconnect', (reason) => {
-            console.log('Socket disconnected:', reason);
-
-            // Attempt to reconnect if not closed intentionally
-            if (reason === 'io server disconnect') {
-              socketInstance.connect();
-            }
-          });
-
-          socketInstance.on('reconnect', (attemptNumber) => {
-            console.log('Socket reconnected after', attemptNumber, 'attempts');
-          });
-
-          setSocket(socketInstance);
         } catch (err) {
           console.error('Error loading user:', err);
           localStorage.removeItem('token');
@@ -86,15 +98,23 @@ function App() {
     };
 
     loadUser();
+  }, []); // Empty dependency array to run only once
 
-    // Cleanup socket connection
-    return () => {
-      if (socket) {
-        console.log('Disconnecting socket');
+  // Connect or disconnect socket based on authentication state
+  useEffect(() => {
+    if (socket) {
+      if (isAuthenticated && !socket.connected) {
+        console.log('Connecting socket due to authentication');
+        // Add a small delay to ensure proper connection
+        setTimeout(() => {
+          socket.connect();
+        }, 100);
+      } else if (!isAuthenticated && socket.connected) {
+        console.log('Disconnecting socket due to logout');
         socket.disconnect();
       }
-    };
-  }, []); // Empty dependency array to run only once
+    }
+  }, [isAuthenticated, socket]);
 
   // Private route component
   const PrivateRoute = ({ children }) => {

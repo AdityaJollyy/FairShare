@@ -52,9 +52,11 @@ const GroupDetail = () => {
         return () => clearInterval(intervalId);
     }, [id]);    // Join socket room for this group
     useEffect(() => {
-        if (socket && group) {
+        if (socket && socket.connected && group) {
             socket.emit('join_group', id);
-            console.log(`Joined group socket room: ${id}`);            // Listen for new expenses
+            console.log(`Joined group socket room: ${id}`);
+
+            // Listen for new expenses
             socket.on('expense_added', (data) => {
                 setExpenses(prevExpenses => {
                     const updatedExpenses = [...prevExpenses, data.expense];

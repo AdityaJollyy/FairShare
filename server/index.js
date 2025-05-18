@@ -31,7 +31,8 @@ const io = new Server(server, {
     cors: {
         origin: process.env.CLIENT_URL || 'http://localhost:5173',
         methods: ['GET', 'POST']
-    }
+    },
+    pingTimeout: 60000 // Increase ping timeout to prevent premature disconnects
 });
 
 // Socket.io connection
@@ -96,11 +97,16 @@ io.on('connection', (socket) => {
         console.log('Member added to group:', data);
         // Broadcast to all sockets to update their dashboards if needed
         io.emit('member_added', data);
-    });
-
-    // Disconnect
-    socket.on('disconnect', () => {
-        console.log('User disconnected:', socket.id);
+    });    // Disconnect
+    socket.on('disconnect', (reason) => {
+        console.log(`User disconnected: ${socket.id}, reason: ${reason}`);
+        // Clean up any rooms this socket was in
+        Array.from(socket.rooms).forEach(room => {
+            if (room !== socket.id) {
+                console.log(`Auto-leaving room: ${room} due to disconnect`);
+                socket.leave(room);
+            }
+        });
     });
 });
 
